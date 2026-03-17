@@ -1,0 +1,183 @@
+{
+  "identity": {
+    "name": "Social Cinema",
+    "description": "A Letterboxd-style social platform for YouTube video curation.",
+    "emotional_tone": "Cinematic, Opinionated, Social, Curated",
+    "archetype": "The Curator (Dark, Premium, focused on Content)",
+    "design_principles": [
+      "Content First: Video thumbnails are the heroes.",
+      "High Contrast: Text must pop against dark backgrounds.",
+      "Tactile Feedback: Ratings should feel physical (haptics + gestures).",
+      "Social Density: Show friend activity clearly but without clutter."
+    ]
+  },
+  "colors": {
+    "palette_name": "Midnight Projection",
+    "theme_strategy": "Dark Mode First (Cinematic default), Light Mode optional",
+    "primary": {
+      "default": "#E11D48",
+      "hover": "#BE123C",
+      "active": "#9F1239",
+      "foreground": "#FFFFFF",
+      "description": "Rose 600 - distinct from YouTube Red but keeps the passion."
+    },
+    "secondary": {
+      "default": "#7C3AED",
+      "foreground": "#FFFFFF",
+      "description": "Violet 600 - for social actions and friend indicators."
+    },
+    "neutral": {
+      "dark": {
+        "bg_root": "#09090B",
+        "bg_card": "#18181B",
+        "bg_overlay": "#27272A",
+        "text_primary": "#FAFAFA",
+        "text_secondary": "#A1A1AA",
+        "border": "#27272A"
+      },
+      "light": {
+        "bg_root": "#FFFFFF",
+        "bg_card": "#F4F4F5",
+        "bg_overlay": "#E4E4E7",
+        "text_primary": "#09090B",
+        "text_secondary": "#71717A",
+        "border": "#E4E4E7"
+      }
+    },
+    "status": {
+      "success": "#10B981",
+      "warning": "#F59E0B",
+      "error": "#EF4444",
+      "info": "#3B82F6"
+    }
+  },
+  "typography": {
+    "font_family": {
+      "headings": "System (San Francisco / Roboto) - Weight: 800 (Heavy)",
+      "body": "System (San Francisco / Roboto) - Weight: 400 (Regular)",
+      "mono": "System Monospace"
+    },
+    "scale": {
+      "h1": { "size": 32, "line_height": 38, "weight": "800", "tracking": -0.5 },
+      "h2": { "size": 24, "line_height": 30, "weight": "700", "tracking": -0.5 },
+      "h3": { "size": 20, "line_height": 26, "weight": "600", "tracking": 0 },
+      "body_lg": { "size": 18, "line_height": 26, "weight": "400" },
+      "body": { "size": 16, "line_height": 24, "weight": "400" },
+      "caption": { "size": 13, "line_height": 18, "weight": "500", "tracking": 0.5 }
+    }
+  },
+  "components": {
+    "VideoCard": {
+      "description": "Main feed item. Large thumbnail, title below, rating overlay.",
+      "style": {
+        "borderRadius": 12,
+        "overflow": "hidden",
+        "marginBottom": 24,
+        "backgroundColor": "neutral.bg_card",
+        "aspectRatio": 16/9
+      }
+    },
+    "StarRating": {
+      "description": "Interactive gesture-based rating.",
+      "interaction": "Pan gesture (slide finger to fill stars). Haptic feedback on each star step.",
+      "visual": "5 stars. Empty state: opacity 0.3. Filled state: Primary Color. Size: 32px touch target."
+    },
+    "Button": {
+      "variants": {
+        "primary": {
+          "backgroundColor": "primary.default",
+          "borderRadius": 100,
+          "paddingVertical": 14,
+          "paddingHorizontal": 24,
+          "alignItems": "center"
+        },
+        "secondary": {
+          "backgroundColor": "neutral.bg_overlay",
+          "borderRadius": 100,
+          "paddingVertical": 14,
+          "paddingHorizontal": 24,
+          "alignItems": "center"
+        },
+        "ghost": {
+          "backgroundColor": "transparent",
+          "paddingVertical": 10
+        }
+      }
+    },
+    "Input": {
+      "style": {
+        "backgroundColor": "neutral.bg_overlay",
+        "borderRadius": 12,
+        "padding": 16,
+        "color": "neutral.text_primary",
+        "fontSize": 16,
+        "borderWidth": 1,
+        "borderColor": "neutral.border"
+      }
+    },
+    "Avatar": {
+      "sizes": {
+        "sm": 32,
+        "md": 48,
+        "lg": 80
+      },
+      "style": {
+        "borderRadius": 9999,
+        "backgroundColor": "neutral.bg_overlay"
+      }
+    }
+  },
+  "navigation": {
+    "structure": "Tab Bar (Bottom) + Stack (Overlay)",
+    "tabs": [
+      { "name": "Home", "icon": "home-variant" },
+      { "name": "Search", "icon": "magnify" },
+      { "name": "Add", "icon": "plus-circle", "special": "Prominent center button" },
+      { "name": "Activity", "icon": "heart-outline" },
+      { "name": "Profile", "icon": "account-circle" }
+    ],
+    "modal_style": "Bottom Sheet / Card Overlay. Keeps home visible in background (opacity 0.5)."
+  },
+  "assets": {
+    "placeholders": {
+      "video_thumbnails": [
+        "https://images.unsplash.com/photo-1663072617962-4f8ccdf7a607?crop=entropy&cs=srgb&fm=jpg&q=85",
+        "https://images.unsplash.com/photo-1707312900236-12d6fefd2bbb?crop=entropy&cs=srgb&fm=jpg&q=85",
+        "https://images.unsplash.com/photo-1710988486897-e933e4b0f72c?crop=entropy&cs=srgb&fm=jpg&q=85",
+        "https://images.unsplash.com/photo-1574923930958-9b653a0e5148?crop=entropy&cs=srgb&fm=jpg&q=85"
+      ],
+      "avatars": [
+        "https://images.unsplash.com/photo-1619241805829-34fb64299391?crop=entropy&cs=srgb&fm=jpg&q=85",
+        "https://images.unsplash.com/photo-1740252117027-4275d3f84385?crop=entropy&cs=srgb&fm=jpg&q=85",
+        "https://images.unsplash.com/photo-1670012896865-f531c5fb65d9?crop=entropy&cs=srgb&fm=jpg&q=85",
+        "https://images.unsplash.com/photo-1605504836193-e77d3d9ede8a?crop=entropy&cs=srgb&fm=jpg&q=85"
+      ],
+      "backgrounds": [
+        "https://images.unsplash.com/photo-1688516353461-540cd4b178fa?crop=entropy&cs=srgb&fm=jpg&q=85",
+        "https://images.unsplash.com/photo-1763386599791-fd86c07e1c86?crop=entropy&cs=srgb&fm=jpg&q=85"
+      ]
+    },
+    "icons": "Use @expo/vector-icons (MaterialCommunityIcons preferred for cinematic feel)"
+  },
+  "universal_guidelines": {
+    "tech_stack": "React Native (Expo), StyleSheet.create, React Navigation / Expo Router",
+    "theme_handling": "Use a React Context (ThemeContext) to toggle between light/dark. Pass theme colors to styles.",
+    "accessibility": "Touch targets minimum 44x44px. Text contrast must pass WCAG AA.",
+    "performance": "Use FlashList (Shopify) for feeds instead of FlatList if possible. Optimize images.",
+    "layout_rules": [
+      "No CSS files. Use StyleSheet.create().",
+      "Avoid absolute positioning for main layout. Use Flexbox.",
+      "Use SafeAreaView for root containers.",
+      "Modal must be a transparent overlay over the Home screen."
+    ],
+    "testing": "Add testID to all interactive elements (buttons, inputs, list items)."
+  },
+  "instructions_to_main_agent": [
+    "Initialize React Native Expo project structure if not present.",
+    "Set up ThemeContext immediately for Dark/Light toggle.",
+    "Create the Bottom Tab Navigator as the main shell.",
+    "Create a 'Add Video' modal that can extract YouTube ID from pasted URL.",
+    "Implement the Star Rating component with PanResponder for sliding interaction.",
+    "Use the placeholder images for the initial MVP feed."
+  ]
+}
