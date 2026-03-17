@@ -387,6 +387,69 @@ async def get_friend_status(user_id: str, request: Request):
     
     return {"status": "none"}
 
+# --- Friends Activity ---
+@api_router.get("/friends/activity")
+async def get_friends_activity(request: Request, skip: int = 0, limit: int = 30):
+    """Get combined activity feed: friends' ratings + comments"""
+    user = await get_current_user(request)
+    
+    # Get friend ids
+    friendships = await db.friendships.find(
+        {"$or": [{"user_id": user["user_id"]}, {"friend_id": user["user_id"]}]}, {"_id": 0}
+    ).to_list(100)
+    friend_ids = []
+    for f in friendships:
+        friend_ids.append(f["friend_id"] if f["user_id"] == user["user_id"] else f["user_id"])
+    
+    if not friend_ids:
+        return []
+    
+    activities = []
+    
+    # Get friends' recent ratings
+    ratings = await db.video_ratings.find(
+        {"user_id": {"$in": friend_ids}}, {"_id": 0}
+    ).sort("created_at", -1).limit(20).to_list(20)
+    
+    for r in ratings:
+        u = await db.users.find_one({"user_id": r["user_id"]}, {"_id": 0, "password_hash": 0})
+        activities.append({
+            "type": "rating",
+            "rating_id": r["rating_id"],
+            "user": u,
+            "title": r["title"],
+            "thumbnail": r["thumbnail"],
+            "channel_name": r.get("channel_name", ""),
+            "rating": r["rating"],
+            "comment": r.get("comment", ""),
+            "created_at": r["created_at"],
+        })
+    
+    # Get friends' recent comments
+    comments = await db.comments.find(
+        {"user_id": {"$in": friend_ids}}, {"_id": 0}
+    ).sort("created_at", -1).limit(20).to_list(20)
+    
+    for c in comments:
+        u = await db.users.find_one({"user_id": c["user_id"]}, {"_id": 0, "password_hash": 0})
+        rating = await db.video_ratings.find_one({"rating_id": c["rating_id"]}, {"_id": 0})
+        if rating:
+            activities.append({
+                "type": "comment",
+                "comment_id": c["comment_id"],
+                "rating_id": c["rating_id"],
+                "user": u,
+                "text": c["text"],
+                "video_title": rating.get("title", ""),
+                "video_thumbnail": rating.get("thumbnail", ""),
+                "created_at": c["created_at"],
+            })
+    
+    # Sort by created_at descending
+    activities.sort(key=lambda x: str(x.get("created_at", "")), reverse=True)
+    
+    return activities[skip:skip+limit]
+
 # --- Videos ---
 @api_router.post("/videos/rate")
 async def rate_video(data: VideoRateRequest, request: Request):

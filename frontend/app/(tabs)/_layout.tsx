@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { View, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../src/contexts/ThemeContext';
 
@@ -15,21 +15,22 @@ export default function TabsLayout() {
           backgroundColor: colors.bg_card,
           borderTopColor: colors.border,
           borderTopWidth: 1,
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 4,
+          height: 70,
+          paddingBottom: 12,
+          paddingTop: 8,
         },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.text_secondary,
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarLabelStyle: { fontSize: 12, fontWeight: '600', marginTop: 2 },
+        tabBarItemStyle: { paddingVertical: 4 },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: 'Accueil',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="home-variant" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <MaterialCommunityIcons name={focused ? 'home-variant' : 'home-variant-outline'} size={26} color={color} />
           ),
         }}
       />
@@ -37,8 +38,8 @@ export default function TabsLayout() {
         name="search"
         options={{
           title: 'Recherche',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="magnify" size={size} color={color} />
+          tabBarIcon: ({ color }) => (
+            <MaterialCommunityIcons name="magnify" size={26} color={color} />
           ),
         }}
       />
@@ -48,17 +49,18 @@ export default function TabsLayout() {
           title: '',
           tabBarIcon: () => (
             <View style={[styles.addBtn, { backgroundColor: colors.primary }]}>
-              <MaterialCommunityIcons name="plus" size={28} color="#FFFFFF" />
+              <MaterialCommunityIcons name="plus" size={30} color="#FFFFFF" />
             </View>
           ),
+          tabBarLabel: () => null,
         }}
       />
       <Tabs.Screen
         name="activity"
         options={{
           title: 'Activité',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="heart-outline" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <MaterialCommunityIcons name={focused ? 'heart' : 'heart-outline'} size={26} color={color} />
           ),
         }}
       />
@@ -66,8 +68,8 @@ export default function TabsLayout() {
         name="profile"
         options={{
           title: 'Profil',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="account-circle-outline" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <MaterialCommunityIcons name={focused ? 'account-circle' : 'account-circle-outline'} size={26} color={color} />
           ),
         }}
       />
@@ -77,11 +79,16 @@ export default function TabsLayout() {
 
 const styles = StyleSheet.create({
   addBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: -12,
+    marginTop: -16,
+    shadowColor: '#E11D48',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
 });
