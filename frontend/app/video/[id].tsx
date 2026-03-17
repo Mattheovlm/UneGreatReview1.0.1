@@ -198,10 +198,6 @@ export default function VideoDetailScreen() {
         <View style={[styles.modal, { backgroundColor: colors.bg_root }]}>
           <View style={[styles.handle, { backgroundColor: colors.text_secondary }]} />
 
-          <TouchableOpacity testID="close-modal-btn" style={styles.closeBtn} onPress={() => router.back()}>
-            <MaterialCommunityIcons name="close" size={24} color={colors.text_secondary} />
-          </TouchableOpacity>
-
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
             {/* YouTube Player */}
             <YouTubePlayer videoId={video.youtube_id} colors={colors} />
@@ -358,9 +354,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   handle: {
-    width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginTop: 8, marginBottom: 4,
+    width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginTop: 8, marginBottom: 12,
   },
-  closeBtn: { position: 'absolute', top: 12, right: 16, zIndex: 10 },
   scrollContent: { paddingBottom: 40 },
   content: { padding: 16 },
   title: { fontSize: 18, fontWeight: '700', marginBottom: 4 },

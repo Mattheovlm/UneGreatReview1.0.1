@@ -17,7 +17,6 @@ export default function CustomTabBar({ state, descriptors, navigation }: any) {
   const insets = useSafeAreaInsets();
   
   // Safe bottom padding: ensure tab bar is well above the phone's system UI
-  // Minimum 40px on all platforms, plus safe area inset on iOS
   const safeBottom = Platform.select({
     ios: Math.max(insets.bottom, 34) + 10,
     android: 40,
@@ -65,7 +64,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: any) {
               ]}
             >
               <View style={[styles.centerBtn, { backgroundColor: colors.primary }]}>
-                <MaterialCommunityIcons name="plus" size={32} color="#FFFFFF" />
+                <MaterialCommunityIcons name="plus" size={28} color="#FFFFFF" />
               </View>
             </Pressable>
           );
@@ -83,7 +82,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: any) {
           >
             <MaterialCommunityIcons
               name={isFocused ? config.iconActive : config.iconInactive}
-              size={26}
+              size={24}
               color={isFocused ? colors.primary : colors.text_secondary}
             />
             <Text
@@ -112,33 +111,34 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     elevation: 20,
     zIndex: 999,
+    paddingHorizontal: 8,
   },
   tabItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 12,
-    paddingBottom: 8,
-    minHeight: 64,
+    paddingTop: 10,
+    paddingBottom: 6,
+    minHeight: 56,
   },
   tabLabel: {
-    fontSize: 11,
-    marginTop: 4,
+    fontSize: 10,
+    marginTop: 3,
   },
   centerTabWrap: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 6,
-    paddingBottom: 8,
-    minHeight: 64,
+    paddingTop: 4,
+    paddingBottom: 6,
+    minHeight: 56,
   },
   centerBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: -10,
+    marginTop: -8,
   },
 });
