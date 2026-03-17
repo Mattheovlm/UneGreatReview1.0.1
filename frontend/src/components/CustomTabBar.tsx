@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
@@ -15,7 +15,14 @@ const TAB_CONFIG = [
 export default function CustomTabBar({ state, descriptors, navigation }: any) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const bottomPad = Math.max(insets.bottom, 12);
+  
+  // Safe bottom padding: ensure tab bar is well above the phone's system UI
+  // Minimum 40px on all platforms, plus safe area inset on iOS
+  const safeBottom = Platform.select({
+    ios: Math.max(insets.bottom, 34) + 10,
+    android: 40,
+    default: 32,
+  });
 
   return (
     <View
@@ -24,7 +31,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: any) {
         {
           backgroundColor: colors.bg_card,
           borderTopColor: colors.border,
-          paddingBottom: bottomPad,
+          paddingBottom: safeBottom,
         },
       ]}
       testID="custom-tab-bar"
@@ -48,27 +55,31 @@ export default function CustomTabBar({ state, descriptors, navigation }: any) {
 
         if (config.isCenter) {
           return (
-            <TouchableOpacity
+            <Pressable
               key={route.key}
               testID="tab-add-btn"
               onPress={onPress}
-              activeOpacity={0.7}
-              style={styles.centerTabWrap}
+              style={({ pressed }) => [
+                styles.centerTabWrap,
+                pressed && { opacity: 0.7 },
+              ]}
             >
               <View style={[styles.centerBtn, { backgroundColor: colors.primary }]}>
                 <MaterialCommunityIcons name="plus" size={32} color="#FFFFFF" />
               </View>
-            </TouchableOpacity>
+            </Pressable>
           );
         }
 
         return (
-          <TouchableOpacity
+          <Pressable
             key={route.key}
             testID={`tab-${config.name}-btn`}
             onPress={onPress}
-            activeOpacity={0.6}
-            style={styles.tabItem}
+            style={({ pressed }) => [
+              styles.tabItem,
+              pressed && { opacity: 0.6, backgroundColor: colors.bg_overlay },
+            ]}
           >
             <MaterialCommunityIcons
               name={isFocused ? config.iconActive : config.iconInactive}
@@ -78,12 +89,16 @@ export default function CustomTabBar({ state, descriptors, navigation }: any) {
             <Text
               style={[
                 styles.tabLabel,
-                { color: isFocused ? colors.primary : colors.text_secondary },
+                {
+                  color: isFocused ? colors.primary : colors.text_secondary,
+                  fontWeight: isFocused ? '700' : '500',
+                },
               ]}
+              numberOfLines={1}
             >
               {config.label}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         );
       })}
     </View>
@@ -94,7 +109,9 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     borderTopWidth: 1,
-    alignItems: 'flex-end',
+    alignItems: 'stretch',
+    elevation: 20,
+    zIndex: 999,
   },
   tabItem: {
     flex: 1,
@@ -106,23 +123,22 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontSize: 11,
-    fontWeight: '700',
     marginTop: 4,
   },
   centerTabWrap: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 4,
+    paddingTop: 6,
     paddingBottom: 8,
     minHeight: 64,
   },
   centerBtn: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: -16,
+    marginTop: -10,
   },
 });

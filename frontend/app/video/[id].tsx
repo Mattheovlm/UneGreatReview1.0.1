@@ -238,7 +238,7 @@ export default function VideoDetailScreen() {
                   </View>
                   <View style={[styles.ratingBadge, { backgroundColor: colors.primary + '20' }]}>
                     <Text style={[styles.ratingBadgeText, { color: colors.primary }]}>
-                      {video.rating}/5
+                      {video.rating % 1 === 0 ? video.rating : video.rating.toFixed(1)}/5
                     </Text>
                   </View>
                 </View>

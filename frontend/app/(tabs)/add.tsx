@@ -107,13 +107,13 @@ export default function AddVideoScreen() {
           <View style={styles.ratingSection}>
             <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>Votre note</Text>
             <Text style={[styles.sectionSub, { color: colors.text_secondary }]}>
-              Glissez votre doigt sur les étoiles
+              Glissez votre doigt sur les étoiles (demi-étoiles possibles)
             </Text>
             <View style={styles.ratingWrap}>
               <StarRating rating={rating} onRate={setRating} size={44} />
               {rating > 0 && (
                 <Text style={[styles.ratingLabel, { color: colors.primary }]}>
-                  {rating}/5
+                  {rating % 1 === 0 ? rating : rating.toFixed(1)}/5
                 </Text>
               )}
             </View>

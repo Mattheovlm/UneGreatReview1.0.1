@@ -81,7 +81,7 @@
   ],
   "test_execution_summary": {
     "backend_test_duration": "0.81s",
-    "backend_test_command": "EXPO_PUBLIC_BACKEND_URL=https://video-rated-hub.preview.emergentagent.com pytest tests/test_profile_update.py -v",
+    "backend_test_command": "EXPO_PUBLIC_BACKEND_URL=https://ratemyfilm.preview.emergentagent.com pytest tests/test_profile_update.py -v",
     "frontend_test_tool": "Playwright with mobile viewport (390x844)",
     "frontend_test_duration": "~60s across 5 test runs",
     "screenshots_captured": 10,

@@ -46,7 +46,7 @@ class GoogleSessionRequest(BaseModel):
 
 class VideoRateRequest(BaseModel):
     youtube_url: str
-    rating: int
+    rating: float  # Support 0.5 increments: 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5
     comment: Optional[str] = ""
 
 class CommentCreate(BaseModel):
@@ -454,8 +454,9 @@ async def get_friends_activity(request: Request, skip: int = 0, limit: int = 30)
 @api_router.post("/videos/rate")
 async def rate_video(data: VideoRateRequest, request: Request):
     user = await get_current_user(request)
-    if data.rating < 1 or data.rating > 5:
-        raise HTTPException(400, "Rating must be between 1 and 5")
+    # Validate rating: must be between 0.5 and 5, in 0.5 increments
+    if data.rating < 0.5 or data.rating > 5 or (data.rating * 2) % 1 != 0:
+        raise HTTPException(400, "Rating must be between 0.5 and 5 in 0.5 increments (0.5, 1, 1.5, ..., 5)")
     
     youtube_info = await get_youtube_info(data.youtube_url)
     
