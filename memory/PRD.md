@@ -45,6 +45,16 @@ Letterboxd pour YouTube - Plateforme sociale de curation de vidéos YouTube.
 - **IA**: OpenAI GPT-4o via Emergent LLM Key
 - **Auth**: JWT + Google OAuth (Emergent Auth)
 
+### Lecteur YouTube
+- Lecteur intégré en iframe (web) avec bouton Play
+- Ouverture externe vers YouTube (native)
+- Badge "Lire la vidéo" sur la miniature
+
+### Édition de Profil
+- Modifier nom et bio via modal
+- Section "Mes amis" horizontale
+- Statistiques (vidéos, amis)
+
 ## Collections MongoDB
 - `users` - Profils utilisateurs
 - `user_sessions` - Sessions d'authentification
