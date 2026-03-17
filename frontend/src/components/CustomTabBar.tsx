@@ -4,23 +4,33 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
 
-const TAB_CONFIG = [
-  { name: 'index', label: 'Accueil', iconActive: 'home-variant', iconInactive: 'home-variant-outline' },
-  { name: 'search', label: 'Recherche', iconActive: 'magnify', iconInactive: 'magnify' },
-  { name: 'add', label: '', iconActive: 'plus', iconInactive: 'plus', isCenter: true },
-  { name: 'activity', label: 'Activité', iconActive: 'heart', iconInactive: 'heart-outline' },
-  { name: 'profile', label: 'Profil', iconActive: 'account-circle', iconInactive: 'account-circle-outline' },
-];
+// Map route names to their config
+const TAB_CONFIG: Record<string, { label: string; iconActive: string; iconInactive: string; isCenter?: boolean }> = {
+  index: { label: 'Accueil', iconActive: 'home-variant', iconInactive: 'home-variant-outline' },
+  search: { label: 'Recherche', iconActive: 'magnify', iconInactive: 'magnify' },
+  add: { label: '', iconActive: 'plus', iconInactive: 'plus', isCenter: true },
+  activity: { label: 'Activité', iconActive: 'heart', iconInactive: 'heart-outline' },
+  profile: { label: 'Profil', iconActive: 'account-circle', iconInactive: 'account-circle-outline' },
+};
+
+// Define the order we want tabs to appear
+const TAB_ORDER = ['index', 'search', 'add', 'activity', 'profile'];
 
 export default function CustomTabBar({ state, descriptors, navigation }: any) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   
-  // Safe bottom padding: ensure tab bar is well above the phone's system UI
   const safeBottom = Platform.select({
     ios: Math.max(insets.bottom, 34) + 10,
     android: 40,
     default: 32,
+  });
+
+  // Sort routes according to TAB_ORDER
+  const sortedRoutes = [...state.routes].sort((a: any, b: any) => {
+    const aIndex = TAB_ORDER.indexOf(a.name);
+    const bIndex = TAB_ORDER.indexOf(b.name);
+    return aIndex - bIndex;
   });
 
   return (
@@ -35,11 +45,14 @@ export default function CustomTabBar({ state, descriptors, navigation }: any) {
       ]}
       testID="custom-tab-bar"
     >
-      {state.routes.map((route: any, index: number) => {
-        const config = TAB_CONFIG[index];
-        if (!config) return null;
+      {sortedRoutes.map((route: any) => {
+        const config = TAB_CONFIG[route.name];
+        if (!config) {
+          console.warn(`No config found for route: ${route.name}`);
+          return null;
+        }
 
-        const isFocused = state.index === index;
+        const isFocused = state.routes[state.index]?.name === route.name;
 
         const onPress = () => {
           const event = navigation.emit({
@@ -73,7 +86,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: any) {
         return (
           <Pressable
             key={route.key}
-            testID={`tab-${config.name}-btn`}
+            testID={`tab-${route.name}-btn`}
             onPress={onPress}
             style={({ pressed }) => [
               styles.tabItem,
