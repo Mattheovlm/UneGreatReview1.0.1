@@ -65,6 +65,7 @@ export default function ProfileScreen() {
       testID={`profile-video-${item.rating_id}`}
       style={[styles.videoItem, { backgroundColor: colors.bg_card }]}
       onPress={() => router.push(`/video/${item.rating_id}`)}
+      activeOpacity={0.7}
     >
       <Image source={{ uri: item.thumbnail }} style={styles.videoThumb} resizeMode="cover" />
       <View style={styles.videoInfo}>
@@ -74,7 +75,10 @@ export default function ProfileScreen() {
         <Text style={[styles.videoChannel, { color: colors.text_secondary }]} numberOfLines={1}>
           {item.channel_name}
         </Text>
-        <StarRating rating={item.rating} size={14} interactive={false} />
+        <StarRating rating={item.rating} size={16} interactive={false} />
+      </View>
+      <View style={styles.videoArrow}>
+        <MaterialCommunityIcons name="chevron-right" size={22} color={colors.text_secondary} />
       </View>
     </TouchableOpacity>
   );
@@ -96,84 +100,94 @@ export default function ProfileScreen() {
         contentContainerStyle={styles.list}
         ListHeaderComponent={
           <View>
-            <View style={styles.header}>
-              <View style={styles.headerTop}>
-                <Text style={[styles.headerTitle, { color: colors.text_primary }]}>Profil</Text>
-                <TouchableOpacity testID="settings-btn" onPress={() => router.push('/settings')}>
-                  <MaterialCommunityIcons name="cog-outline" size={26} color={colors.text_secondary} />
-                </TouchableOpacity>
-              </View>
+            {/* Header with Settings */}
+            <View style={styles.headerTop}>
+              <Text style={[styles.headerTitle, { color: colors.text_primary }]}>Profil</Text>
+              <TouchableOpacity
+                testID="settings-btn"
+                onPress={() => router.push('/settings')}
+                style={[styles.settingsBtn, { backgroundColor: colors.bg_card }]}
+              >
+                <MaterialCommunityIcons name="cog-outline" size={24} color={colors.text_secondary} />
+              </TouchableOpacity>
+            </View>
 
-              <View style={[styles.profileCard, { backgroundColor: colors.bg_card }]}>
-                {user?.picture ? (
-                  <Image source={{ uri: user.picture }} style={styles.avatar} />
-                ) : (
-                  <View style={[styles.avatar, { backgroundColor: colors.secondary, justifyContent: 'center', alignItems: 'center' }]}>
-                    <Text style={styles.avatarLetter}>{user?.name?.[0]?.toUpperCase()}</Text>
-                  </View>
-                )}
-                <Text style={[styles.name, { color: colors.text_primary }]}>{user?.name}</Text>
-                <Text style={[styles.email, { color: colors.text_secondary }]}>{user?.email}</Text>
-                {user?.bio ? (
-                  <Text style={[styles.bio, { color: colors.text_secondary }]}>{user.bio}</Text>
-                ) : null}
-
-                <TouchableOpacity
-                  testID="edit-profile-btn"
-                  style={[styles.editBtn, { backgroundColor: colors.bg_overlay }]}
-                  onPress={openEdit}
-                >
-                  <MaterialCommunityIcons name="pencil" size={16} color={colors.text_primary} />
-                  <Text style={[styles.editBtnText, { color: colors.text_primary }]}>Modifier le profil</Text>
-                </TouchableOpacity>
-
-                <View style={styles.stats}>
-                  <View style={styles.stat}>
-                    <Text style={[styles.statNum, { color: colors.primary }]}>{videos.length}</Text>
-                    <Text style={[styles.statLabel, { color: colors.text_secondary }]}>Vidéos</Text>
-                  </View>
-                  <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-                  <View style={styles.stat}>
-                    <Text style={[styles.statNum, { color: colors.primary }]}>{friends.length}</Text>
-                    <Text style={[styles.statLabel, { color: colors.text_secondary }]}>Amis</Text>
-                  </View>
-                </View>
-              </View>
-
-              {friends.length > 0 && (
-                <View style={styles.friendsSection}>
-                  <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>Mes amis</Text>
-                  <FlatList
-                    horizontal
-                    data={friends}
-                    keyExtractor={(item) => item.user_id}
-                    showsHorizontalScrollIndicator={false}
-                    renderItem={({ item }) => (
-                      <TouchableOpacity
-                        testID={`friend-${item.user_id}`}
-                        style={styles.friendChip}
-                        onPress={() => router.push(`/user/${item.user_id}`)}
-                      >
-                        {item.picture ? (
-                          <Image source={{ uri: item.picture }} style={styles.friendAvatar} />
-                        ) : (
-                          <View style={[styles.friendAvatar, { backgroundColor: colors.secondary, justifyContent: 'center', alignItems: 'center' }]}>
-                            <Text style={styles.friendLetter}>{item.name?.[0]?.toUpperCase()}</Text>
-                          </View>
-                        )}
-                        <Text style={[styles.friendName, { color: colors.text_primary }]} numberOfLines={1}>
-                          {item.name}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  />
+            {/* Profile Card */}
+            <View style={[styles.profileCard, { backgroundColor: colors.bg_card }]}>
+              {user?.picture ? (
+                <Image source={{ uri: user.picture }} style={styles.avatar} />
+              ) : (
+                <View style={[styles.avatar, { backgroundColor: colors.secondary, justifyContent: 'center', alignItems: 'center' }]}>
+                  <Text style={styles.avatarLetter}>{user?.name?.[0]?.toUpperCase()}</Text>
                 </View>
               )}
+              <Text style={[styles.name, { color: colors.text_primary }]}>{user?.name}</Text>
+              <Text style={[styles.email, { color: colors.text_secondary }]}>{user?.email}</Text>
+              {user?.bio ? (
+                <Text style={[styles.bio, { color: colors.text_secondary }]}>{user.bio}</Text>
+              ) : null}
 
-              <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>
-                Mes vidéos notées
-              </Text>
+              {/* Edit Profile - BIG button */}
+              <TouchableOpacity
+                testID="edit-profile-btn"
+                style={[styles.editBtn, { backgroundColor: colors.bg_overlay }]}
+                onPress={openEdit}
+                activeOpacity={0.7}
+              >
+                <MaterialCommunityIcons name="pencil" size={18} color={colors.text_primary} />
+                <Text style={[styles.editBtnText, { color: colors.text_primary }]}>Modifier le profil</Text>
+              </TouchableOpacity>
+
+              {/* Stats */}
+              <View style={styles.stats}>
+                <TouchableOpacity style={styles.stat} activeOpacity={0.7}>
+                  <Text style={[styles.statNum, { color: colors.primary }]}>{videos.length}</Text>
+                  <Text style={[styles.statLabel, { color: colors.text_secondary }]}>Vidéos</Text>
+                </TouchableOpacity>
+                <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+                <TouchableOpacity style={styles.stat} activeOpacity={0.7}>
+                  <Text style={[styles.statNum, { color: colors.primary }]}>{friends.length}</Text>
+                  <Text style={[styles.statLabel, { color: colors.text_secondary }]}>Amis</Text>
+                </TouchableOpacity>
+              </View>
             </View>
+
+            {/* Friends Section */}
+            {friends.length > 0 && (
+              <View style={styles.friendsSection}>
+                <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>Mes amis</Text>
+                <FlatList
+                  horizontal
+                  data={friends}
+                  keyExtractor={(item) => item.user_id}
+                  showsHorizontalScrollIndicator={false}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      testID={`friend-${item.user_id}`}
+                      style={styles.friendChip}
+                      onPress={() => router.push(`/user/${item.user_id}`)}
+                      activeOpacity={0.7}
+                    >
+                      {item.picture ? (
+                        <Image source={{ uri: item.picture }} style={styles.friendAvatar} />
+                      ) : (
+                        <View style={[styles.friendAvatar, { backgroundColor: colors.secondary, justifyContent: 'center', alignItems: 'center' }]}>
+                          <Text style={styles.friendLetter}>{item.name?.[0]?.toUpperCase()}</Text>
+                        </View>
+                      )}
+                      <Text style={[styles.friendName, { color: colors.text_primary }]} numberOfLines={1}>
+                        {item.name}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                />
+              </View>
+            )}
+
+            {/* Section title */}
+            <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>
+              Mes vidéos notées
+            </Text>
           </View>
         }
         ListEmptyComponent={
@@ -186,7 +200,9 @@ export default function ProfileScreen() {
               testID="profile-add-video-btn"
               style={[styles.emptyBtn, { backgroundColor: colors.primary }]}
               onPress={() => router.push('/(tabs)/add')}
+              activeOpacity={0.7}
             >
+              <MaterialCommunityIcons name="plus" size={20} color="#fff" />
               <Text style={styles.emptyBtnText}>Noter ma première vidéo</Text>
             </TouchableOpacity>
           </View>
@@ -200,7 +216,11 @@ export default function ProfileScreen() {
             <View style={[styles.editCard, { backgroundColor: colors.bg_root }]}>
               <View style={styles.editHeader}>
                 <Text style={[styles.editTitle, { color: colors.text_primary }]}>Modifier le profil</Text>
-                <TouchableOpacity testID="close-edit-btn" onPress={() => setEditModal(false)}>
+                <TouchableOpacity
+                  testID="close-edit-btn"
+                  onPress={() => setEditModal(false)}
+                  style={styles.closeEditBtn}
+                >
                   <MaterialCommunityIcons name="close" size={24} color={colors.text_secondary} />
                 </TouchableOpacity>
               </View>
@@ -232,6 +252,7 @@ export default function ProfileScreen() {
                 style={[styles.saveBtn, { backgroundColor: colors.primary }]}
                 onPress={handleSave}
                 disabled={saving}
+                activeOpacity={0.7}
               >
                 {saving ? (
                   <ActivityIndicator color="#fff" />
@@ -251,12 +272,18 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   loader: { flex: 1, justifyContent: 'center' },
   list: { paddingHorizontal: 16, paddingBottom: 24 },
-  header: { marginBottom: 8 },
   headerTop: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingTop: 12, paddingBottom: 8, paddingHorizontal: 4,
   },
   headerTitle: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
+  settingsBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   profileCard: {
     borderRadius: 16, padding: 24, alignItems: 'center', marginBottom: 20,
   },
@@ -266,32 +293,50 @@ const styles = StyleSheet.create({
   email: { fontSize: 14, marginTop: 4 },
   bio: { fontSize: 14, marginTop: 8, textAlign: 'center', lineHeight: 20 },
   editBtn: {
-    flexDirection: 'row', alignItems: 'center', borderRadius: 100,
-    paddingVertical: 8, paddingHorizontal: 16, marginTop: 12, gap: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 100,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    marginTop: 16,
+    gap: 8,
+    minHeight: 48,
+    minWidth: 200,
   },
-  editBtnText: { fontSize: 13, fontWeight: '600' },
-  stats: { flexDirection: 'row', alignItems: 'center', marginTop: 16, gap: 24 },
-  stat: { alignItems: 'center' },
-  statNum: { fontSize: 22, fontWeight: '800' },
+  editBtnText: { fontSize: 15, fontWeight: '700' },
+  stats: { flexDirection: 'row', alignItems: 'center', marginTop: 20, gap: 32 },
+  stat: { alignItems: 'center', padding: 8, minWidth: 60 },
+  statNum: { fontSize: 24, fontWeight: '800' },
   statLabel: { fontSize: 13, marginTop: 2 },
   statDivider: { width: 1, height: 32 },
   friendsSection: { marginBottom: 20 },
   sectionTitle: { fontSize: 18, fontWeight: '700', marginBottom: 12, paddingHorizontal: 4 },
-  friendChip: { alignItems: 'center', marginRight: 16, width: 64 },
-  friendAvatar: { width: 52, height: 52, borderRadius: 26 },
-  friendLetter: { color: '#fff', fontSize: 20, fontWeight: '700' },
-  friendName: { fontSize: 12, marginTop: 4, textAlign: 'center' },
+  friendChip: { alignItems: 'center', marginRight: 16, width: 72, paddingVertical: 4 },
+  friendAvatar: { width: 56, height: 56, borderRadius: 28 },
+  friendLetter: { color: '#fff', fontSize: 22, fontWeight: '700' },
+  friendName: { fontSize: 12, marginTop: 6, textAlign: 'center' },
   videoItem: {
-    flexDirection: 'row', borderRadius: 12, overflow: 'hidden', marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 14,
+    overflow: 'hidden',
+    marginBottom: 12,
+    minHeight: 80,
   },
-  videoThumb: { width: 120, height: 68 },
-  videoInfo: { flex: 1, padding: 10, justifyContent: 'center', gap: 2 },
-  videoTitle: { fontSize: 14, fontWeight: '600' },
+  videoThumb: { width: 120, height: 68, borderRadius: 8, margin: 8 },
+  videoInfo: { flex: 1, paddingVertical: 10, paddingRight: 4, gap: 3 },
+  videoTitle: { fontSize: 14, fontWeight: '600', lineHeight: 18 },
   videoChannel: { fontSize: 12 },
+  videoArrow: { paddingRight: 12 },
   empty: { alignItems: 'center', paddingTop: 40 },
-  emptyText: { fontSize: 15, marginTop: 12 },
-  emptyBtn: { borderRadius: 100, paddingVertical: 12, paddingHorizontal: 24, marginTop: 16 },
-  emptyBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  emptyText: { fontSize: 15, marginTop: 12, textAlign: 'center' },
+  emptyBtn: {
+    flexDirection: 'row', borderRadius: 100, paddingVertical: 14,
+    paddingHorizontal: 24, marginTop: 16, gap: 8, alignItems: 'center',
+    minHeight: 48,
+  },
+  emptyBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
   // Edit Modal
   modalOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 20,
@@ -301,9 +346,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20,
   },
   editTitle: { fontSize: 20, fontWeight: '700' },
+  closeEditBtn: {
+    width: 44, height: 44, borderRadius: 22,
+    justifyContent: 'center', alignItems: 'center',
+  },
   editLabel: { fontSize: 13, fontWeight: '600', marginBottom: 6, marginTop: 12 },
-  editInput: { borderRadius: 12, padding: 14, fontSize: 16, borderWidth: 1 },
-  editBioInput: { minHeight: 80, maxHeight: 120 },
-  saveBtn: { borderRadius: 100, paddingVertical: 14, alignItems: 'center', marginTop: 24 },
+  editInput: { borderRadius: 12, padding: 16, fontSize: 16, borderWidth: 1, minHeight: 52 },
+  editBioInput: { minHeight: 100, maxHeight: 150 },
+  saveBtn: { borderRadius: 100, paddingVertical: 16, alignItems: 'center', marginTop: 24, minHeight: 52 },
   saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });
