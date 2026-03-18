@@ -63,6 +63,32 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        <View style={[styles.section, { backgroundColor: colors.bg_card }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text_secondary }]}>LÉGAL</Text>
+          <TouchableOpacity
+            testID="privacy-policy-btn"
+            style={styles.settingRow}
+            onPress={() => router.push('/privacy')}
+          >
+            <View style={styles.settingInfo}>
+              <MaterialCommunityIcons name="shield-lock-outline" size={22} color={colors.text_secondary} />
+              <Text style={[styles.settingText, { color: colors.text_primary }]}>Politique de Confidentialité</Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={22} color={colors.text_secondary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            testID="terms-btn"
+            style={styles.settingRow}
+            onPress={() => router.push('/terms')}
+          >
+            <View style={styles.settingInfo}>
+              <MaterialCommunityIcons name="file-document-outline" size={22} color={colors.text_secondary} />
+              <Text style={[styles.settingText, { color: colors.text_primary }]}>Conditions d'Utilisation</Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={22} color={colors.text_secondary} />
+          </TouchableOpacity>
+        </View>
+
         <TouchableOpacity
           testID="logout-btn"
           style={[styles.logoutBtn, { backgroundColor: colors.error + '15' }]}

@@ -85,6 +85,11 @@ Letterboxd pour YouTube - Plateforme sociale de curation de vidéos YouTube.
 ## Changelog
 
 ### 2026-03-18
+- **FEATURE**: Pages légales obligatoires pour App Store
+  - Page "Politique de Confidentialité" (/privacy)
+  - Page "Conditions d'Utilisation" (/terms)
+  - Liens dans la page Paramètres (section LÉGAL)
+  - Liens sur la page de connexion
 - **FEATURE**: Système de playlists complet
   - Max 15 playlists par utilisateur, 50 vidéos par playlist
   - Création depuis le profil (bouton "+ Playlist")

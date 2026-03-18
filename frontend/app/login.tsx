@@ -145,6 +145,20 @@ export default function LoginScreen() {
             </Text>
             <Text style={[styles.switchTextBold, { color: colors.primary }]}>S'inscrire</Text>
           </TouchableOpacity>
+
+          <View style={styles.legalLinks}>
+            <TouchableOpacity onPress={() => router.push('/privacy')}>
+              <Text style={[styles.legalText, { color: colors.text_secondary }]}>
+                Politique de Confidentialité
+              </Text>
+            </TouchableOpacity>
+            <Text style={[styles.legalSeparator, { color: colors.text_secondary }]}> • </Text>
+            <TouchableOpacity onPress={() => router.push('/terms')}>
+              <Text style={[styles.legalText, { color: colors.text_secondary }]}>
+                CGU
+              </Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -183,4 +197,10 @@ const styles = StyleSheet.create({
   },
   switchText: { fontSize: 15 },
   switchTextBold: { fontSize: 15, fontWeight: '700' },
+  legalLinks: {
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+    marginTop: 20, flexWrap: 'wrap',
+  },
+  legalText: { fontSize: 12 },
+  legalSeparator: { fontSize: 12 },
 });
