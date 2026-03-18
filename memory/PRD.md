@@ -85,6 +85,22 @@ Letterboxd pour YouTube - Plateforme sociale de curation de vidéos YouTube.
 ## Changelog
 
 ### 2026-03-18
+- **FEATURE**: Background dynamique sur le modal vidéo
+  - L'image de la miniature est floue en arrière-plan
+  - Effet similaire à Apple Music / Spotify
+- **FEATURE**: Système de Likes
+  - Bouton Like/Unlike sur chaque note
+  - Compteur de likes affiché
+  - Endpoint POST /api/ratings/{id}/like
+- **FEATURE**: Top 3 de la semaine
+  - Bannière sur la page d'accueil
+  - Affiche les 3 vidéos les plus aimées de la semaine
+  - Médailles 🥇🥈🥉
+- **FEATURE**: Badges de Cinéphile (Gamification)
+  - 🎬 "Apprenti Critique" : 5 vidéos notées
+  - 🍿 "Accro au Pop-corn" : 3 notes en une journée
+  - 🌟 "Influenceur" : Une note avec 10+ likes
+  - Affichage sur le profil utilisateur
 - **FEATURE**: Pages légales obligatoires pour App Store
   - Page "Politique de Confidentialité" (/privacy)
   - Page "Conditions d'Utilisation" (/terms)

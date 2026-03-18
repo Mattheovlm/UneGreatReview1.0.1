@@ -69,6 +69,9 @@ class PlaylistAddVideo(BaseModel):
     thumbnail: str
     channel_name: Optional[str] = ""
 
+class LikeRating(BaseModel):
+    rating_id: str
+
 class ProfileUpdate(BaseModel):
     name: Optional[str] = None
     bio: Optional[str] = None
@@ -529,6 +532,25 @@ async def search_videos(q: str, request: Request):
     ).limit(20).to_list(20)
     return await enrich_ratings(ratings)
 
+# Top 3 of the Week - MUST be before /videos/{rating_id}
+@api_router.get("/videos/top-week")
+async def get_top_week(request: Request):
+    # Get ratings from the last 7 days, sorted by like_count
+    week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+    
+    top_ratings = await db.video_ratings.find(
+        {"created_at": {"$gte": week_ago}},
+        {"_id": 0}
+    ).sort("like_count", -1).limit(3).to_list(3)
+    
+    # Enrich with user info
+    enriched = []
+    for r in top_ratings:
+        user = await db.users.find_one({"user_id": r["user_id"]}, {"_id": 0, "password_hash": 0})
+        enriched.append({**r, "user": user})
+    
+    return enriched
+
 @api_router.get("/videos/user/{user_id}")
 async def get_user_videos(user_id: str, request: Request):
     await get_current_user(request)
@@ -733,6 +755,102 @@ async def remove_video_from_playlist(playlist_id: str, youtube_id: str, request:
         }
     )
     return {"message": "Vidéo retirée"}
+
+# --- Likes ---
+@api_router.post("/ratings/{rating_id}/like")
+async def like_rating(rating_id: str, request: Request):
+    user = await get_current_user(request)
+    rating = await db.video_ratings.find_one({"rating_id": rating_id})
+    if not rating:
+        raise HTTPException(404, "Note non trouvée")
+    
+    # Check if already liked
+    existing = await db.likes.find_one({"user_id": user["user_id"], "rating_id": rating_id})
+    if existing:
+        # Unlike
+        await db.likes.delete_one({"user_id": user["user_id"], "rating_id": rating_id})
+        await db.video_ratings.update_one({"rating_id": rating_id}, {"$inc": {"like_count": -1}})
+        return {"liked": False, "like_count": max(0, rating.get("like_count", 1) - 1)}
+    
+    # Like
+    await db.likes.insert_one({
+        "like_id": f"like_{uuid.uuid4().hex[:12]}",
+        "user_id": user["user_id"],
+        "rating_id": rating_id,
+        "created_at": datetime.now(timezone.utc)
+    })
+    await db.video_ratings.update_one({"rating_id": rating_id}, {"$inc": {"like_count": 1}})
+    
+    return {"liked": True, "like_count": rating.get("like_count", 0) + 1}
+
+@api_router.get("/ratings/{rating_id}/liked")
+async def check_liked(rating_id: str, request: Request):
+    user = await get_current_user(request)
+    existing = await db.likes.find_one({"user_id": user["user_id"], "rating_id": rating_id})
+    return {"liked": existing is not None}
+
+# --- Badges ---
+BADGES = {
+    "apprenti_critique": {
+        "id": "apprenti_critique",
+        "name": "Apprenti Critique",
+        "emoji": "🎬",
+        "description": "A noté 5 vidéos",
+        "threshold": 5
+    },
+    "accro_popcorn": {
+        "id": "accro_popcorn",
+        "name": "Accro au Pop-corn",
+        "emoji": "🍿",
+        "description": "3 notes en une journée",
+        "threshold": 3
+    },
+    "influenceur": {
+        "id": "influenceur",
+        "name": "Influenceur",
+        "emoji": "🌟",
+        "description": "Une note avec 10+ likes",
+        "threshold": 10
+    }
+}
+
+@api_router.get("/users/{user_id}/badges")
+async def get_user_badges(user_id: str, request: Request):
+    badges = []
+    
+    # Badge: Apprenti Critique (5+ ratings)
+    rating_count = await db.video_ratings.count_documents({"user_id": user_id})
+    if rating_count >= BADGES["apprenti_critique"]["threshold"]:
+        badges.append(BADGES["apprenti_critique"])
+    
+    # Badge: Accro au Pop-corn (3 ratings in one day)
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    today_count = await db.video_ratings.count_documents({
+        "user_id": user_id,
+        "created_at": {"$gte": today_start}
+    })
+    # Also check historical - any day with 3+ ratings
+    pipeline = [
+        {"$match": {"user_id": user_id}},
+        {"$group": {
+            "_id": {"$dateToString": {"format": "%Y-%m-%d", "date": "$created_at"}},
+            "count": {"$sum": 1}
+        }},
+        {"$match": {"count": {"$gte": 3}}}
+    ]
+    days_with_3 = await db.video_ratings.aggregate(pipeline).to_list(1)
+    if today_count >= 3 or len(days_with_3) > 0:
+        badges.append(BADGES["accro_popcorn"])
+    
+    # Badge: Influenceur (a rating with 10+ likes)
+    popular_rating = await db.video_ratings.find_one({
+        "user_id": user_id,
+        "like_count": {"$gte": BADGES["influenceur"]["threshold"]}
+    })
+    if popular_rating:
+        badges.append(BADGES["influenceur"])
+    
+    return {"badges": badges, "stats": {"total_ratings": rating_count}}
 
 # --- Health ---
 @api_router.get("/health")

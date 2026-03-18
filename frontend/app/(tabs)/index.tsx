@@ -8,6 +8,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import { apiCall } from '../../src/utils/api';
 import VideoCard from '../../src/components/VideoCard';
+import TopWeekBanner from '../../src/components/TopWeekBanner';
 
 type TabType = 'friends' | 'discover';
 
@@ -17,17 +18,20 @@ export default function HomeScreen() {
   const [activeTab, setActiveTab] = useState<TabType>('friends');
   const [friendsFeed, setFriendsFeed] = useState<any[]>([]);
   const [discoverFeed, setDiscoverFeed] = useState<any[]>([]);
+  const [topWeek, setTopWeek] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchFeed = useCallback(async () => {
     try {
-      const [friends, discover] = await Promise.all([
+      const [friends, discover, top] = await Promise.all([
         apiCall('/api/videos/feed').catch(() => []),
         apiCall('/api/videos/discover').catch(() => []),
+        apiCall('/api/videos/top-week').catch(() => []),
       ]);
       setFriendsFeed(friends);
       setDiscoverFeed(discover);
+      setTopWeek(top);
     } catch (e) {
       console.error('Feed error:', e);
     }
@@ -113,6 +117,7 @@ export default function HomeScreen() {
             onPress={() => router.push(`/video/${item.rating_id}`)}
           />
         )}
+        ListHeaderComponent={topWeek.length > 0 ? <TopWeekBanner videos={topWeek} /> : null}
         ListEmptyComponent={renderEmpty}
         contentContainerStyle={styles.list}
         refreshControl={

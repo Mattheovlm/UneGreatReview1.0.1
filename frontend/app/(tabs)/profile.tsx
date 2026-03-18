@@ -9,6 +9,7 @@ import { useAuth } from '../../src/contexts/AuthContext';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import { apiCall } from '../../src/utils/api';
 import StarRating from '../../src/components/StarRating';
+import BadgeDisplay from '../../src/components/BadgeDisplay';
 
 const MAX_PLAYLISTS = 15;
 
@@ -19,6 +20,7 @@ export default function ProfileScreen() {
   const [videos, setVideos] = useState<any[]>([]);
   const [friends, setFriends] = useState<any[]>([]);
   const [playlists, setPlaylists] = useState<any[]>([]);
+  const [badges, setBadges] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editModal, setEditModal] = useState(false);
   const [playlistModal, setPlaylistModal] = useState(false);
@@ -31,17 +33,17 @@ export default function ProfileScreen() {
   useEffect(() => {
     if (!user) return;
     const fetchData = async () => {
-      console.log('[Profile] Fetching data for user:', user.user_id);
       try {
-        const [vids, frds, pls] = await Promise.all([
-          apiCall(`/api/videos/user/${user.user_id}`).catch((e) => { console.log('[Profile] Videos error:', e); return []; }),
-          apiCall('/api/friends').catch((e) => { console.log('[Profile] Friends error:', e); return []; }),
-          apiCall('/api/playlists').catch((e) => { console.log('[Profile] Playlists error:', e); return []; }),
+        const [vids, frds, pls, badgeData] = await Promise.all([
+          apiCall(`/api/videos/user/${user.user_id}`).catch(() => []),
+          apiCall('/api/friends').catch(() => []),
+          apiCall('/api/playlists').catch(() => []),
+          apiCall(`/api/users/${user.user_id}/badges`).catch(() => ({ badges: [] })),
         ]);
-        console.log('[Profile] Fetched playlists:', pls?.length || 0);
         setVideos(vids || []);
         setFriends(frds || []);
         setPlaylists(pls || []);
+        setBadges(badgeData?.badges || []);
       } catch (e) { console.error('[Profile] General error:', e); }
       setLoading(false);
     };
@@ -190,6 +192,21 @@ export default function ProfileScreen() {
                   <Text style={[styles.statLabel, { color: colors.text_secondary }]}>Amis</Text>
                 </TouchableOpacity>
               </View>
+
+              {/* Badges */}
+              {badges.length > 0 && (
+                <View style={styles.badgesRow}>
+                  {badges.map((badge) => (
+                    <View
+                      key={badge.id}
+                      style={[styles.badgeChip, { backgroundColor: colors.bg_overlay }]}
+                    >
+                      <Text style={styles.badgeEmoji}>{badge.emoji}</Text>
+                      <Text style={[styles.badgeName, { color: colors.text_primary }]}>{badge.name}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
 
             {/* Friends Section */}
@@ -560,4 +577,22 @@ const styles = StyleSheet.create({
   editBioInput: { minHeight: 100, maxHeight: 150 },
   saveBtn: { borderRadius: 100, paddingVertical: 16, alignItems: 'center', marginTop: 24, minHeight: 52 },
   saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  // Badges
+  badgesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 16,
+    justifyContent: 'center',
+  },
+  badgeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 6,
+  },
+  badgeEmoji: { fontSize: 16 },
+  badgeName: { fontSize: 12, fontWeight: '600' },
 });

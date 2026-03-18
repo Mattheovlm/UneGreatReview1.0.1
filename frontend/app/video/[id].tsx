@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, Image, TextInput, TouchableOpacity, ScrollView,
   StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, Pressable,
-  Dimensions, Linking,
+  Dimensions, Linking, ImageBackground,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../src/contexts/ThemeContext';
@@ -11,7 +12,7 @@ import { apiCall } from '../../src/utils/api';
 import StarRating from '../../src/components/StarRating';
 import AddToPlaylistModal from '../../src/components/AddToPlaylistModal';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 function YouTubePlayer({ videoId, colors }: { videoId: string; colors: any }) {
   const [playing, setPlaying] = useState(false);
@@ -124,15 +125,21 @@ export default function VideoDetailScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [playlistModal, setPlaylistModal] = useState(false);
+  const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [liking, setLiking] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [detail, recos] = await Promise.all([
+        const [detail, recos, likedStatus] = await Promise.all([
           apiCall(`/api/videos/${id}`),
           apiCall('/api/videos/discover?limit=6').catch(() => []),
+          apiCall(`/api/ratings/${id}/liked`).catch(() => ({ liked: false })),
         ]);
         setVideo(detail);
+        setLiked(likedStatus?.liked || false);
+        setLikeCount(detail?.like_count || 0);
         const filtered = Array.isArray(recos) ? recos.filter((r: any) => r.rating_id !== id) : [];
         setRecommendations(filtered.slice(0, 5));
       } catch (e) {
@@ -142,6 +149,19 @@ export default function VideoDetailScreen() {
     };
     fetchData();
   }, [id]);
+
+  const handleLike = async () => {
+    if (liking) return;
+    setLiking(true);
+    try {
+      const result = await apiCall(`/api/ratings/${id}/like`, { method: 'POST' });
+      setLiked(result.liked);
+      setLikeCount(result.like_count);
+    } catch (e) {
+      console.error('Like error:', e);
+    }
+    setLiking(false);
+  };
 
   const handleComment = async () => {
     if (!commentText.trim() || submitting) return;
@@ -192,12 +212,23 @@ export default function VideoDetailScreen() {
 
   return (
     <View style={styles.overlay} testID="video-detail-screen">
+      {/* Dynamic blurred background */}
+      {video.thumbnail && (
+        <View style={styles.blurBackground}>
+          <Image
+            source={{ uri: video.thumbnail }}
+            style={styles.blurImage}
+            blurRadius={Platform.OS === 'web' ? 50 : 30}
+          />
+          <View style={[styles.blurOverlay, { backgroundColor: colors.bg_root + 'E6' }]} />
+        </View>
+      )}
       <Pressable style={styles.backdrop} onPress={() => router.back()} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.modalWrap}
       >
-        <View style={[styles.modal, { backgroundColor: colors.bg_root }]}>
+        <View style={[styles.modal, { backgroundColor: colors.bg_root + 'F0' }]}>
           <View style={[styles.handle, { backgroundColor: colors.text_secondary }]} />
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -209,6 +240,24 @@ export default function VideoDetailScreen() {
               <View style={styles.channelRow}>
                 <Text style={[styles.channel, { color: colors.text_secondary }]}>{video.channel_name}</Text>
                 <View style={styles.actionRow}>
+                  {/* Like Button */}
+                  <TouchableOpacity
+                    testID="like-btn"
+                    style={[styles.likeBtn, liked && { backgroundColor: colors.primary + '20' }]}
+                    onPress={handleLike}
+                    disabled={liking}
+                  >
+                    <MaterialCommunityIcons
+                      name={liked ? 'heart' : 'heart-outline'}
+                      size={18}
+                      color={liked ? colors.primary : colors.text_secondary}
+                    />
+                    {likeCount > 0 && (
+                      <Text style={[styles.likeCount, { color: liked ? colors.primary : colors.text_secondary }]}>
+                        {likeCount}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
                   <TouchableOpacity
                     testID="add-to-playlist-btn"
                     style={[styles.actionBtn, { backgroundColor: colors.bg_overlay }]}
@@ -364,9 +413,20 @@ export default function VideoDetailScreen() {
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
+  blurBackground: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: -1,
+  },
+  blurImage: {
+    width: '100%',
+    height: '100%',
+    transform: [{ scale: 1.2 }],
+  },
+  blurOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.6)',
   },
   modalWrap: { maxHeight: '92%' },
   modal: {
@@ -389,6 +449,11 @@ const styles = StyleSheet.create({
   actionRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
   },
+  likeBtn: {
+    flexDirection: 'row', alignItems: 'center', borderRadius: 20,
+    paddingHorizontal: 10, paddingVertical: 6, gap: 4,
+  },
+  likeCount: { fontSize: 13, fontWeight: '600' },
   actionBtn: {
     borderRadius: 20, padding: 8,
   },
