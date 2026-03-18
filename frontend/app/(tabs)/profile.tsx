@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, Image, FlatList, TouchableOpacity, TextInput, StyleSheet,
-  SafeAreaView, ActivityIndicator, Modal, KeyboardAvoidingView, Platform, Alert,
+  SafeAreaView, ActivityIndicator, Modal, KeyboardAvoidingView, Platform, Alert, ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -10,29 +10,39 @@ import { useTheme } from '../../src/contexts/ThemeContext';
 import { apiCall } from '../../src/utils/api';
 import StarRating from '../../src/components/StarRating';
 
+const MAX_PLAYLISTS = 15;
+
 export default function ProfileScreen() {
   const { user, refreshUser } = useAuth();
   const { colors } = useTheme();
   const router = useRouter();
   const [videos, setVideos] = useState<any[]>([]);
   const [friends, setFriends] = useState<any[]>([]);
+  const [playlists, setPlaylists] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editModal, setEditModal] = useState(false);
+  const [playlistModal, setPlaylistModal] = useState(false);
   const [editName, setEditName] = useState('');
   const [editBio, setEditBio] = useState('');
+  const [newPlaylistName, setNewPlaylistName] = useState('');
+  const [newPlaylistDesc, setNewPlaylistDesc] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!user) return;
     const fetchData = async () => {
+      console.log('[Profile] Fetching data for user:', user.user_id);
       try {
-        const [vids, frds] = await Promise.all([
-          apiCall(`/api/videos/user/${user.user_id}`).catch(() => []),
-          apiCall('/api/friends').catch(() => []),
+        const [vids, frds, pls] = await Promise.all([
+          apiCall(`/api/videos/user/${user.user_id}`).catch((e) => { console.log('[Profile] Videos error:', e); return []; }),
+          apiCall('/api/friends').catch((e) => { console.log('[Profile] Friends error:', e); return []; }),
+          apiCall('/api/playlists').catch((e) => { console.log('[Profile] Playlists error:', e); return []; }),
         ]);
-        setVideos(vids);
-        setFriends(frds);
-      } catch (e) { console.error(e); }
+        console.log('[Profile] Fetched playlists:', pls?.length || 0);
+        setVideos(vids || []);
+        setFriends(frds || []);
+        setPlaylists(pls || []);
+      } catch (e) { console.error('[Profile] General error:', e); }
       setLoading(false);
     };
     fetchData();
@@ -42,6 +52,35 @@ export default function ProfileScreen() {
     setEditName(user?.name || '');
     setEditBio(user?.bio || '');
     setEditModal(true);
+  };
+
+  const openCreatePlaylist = () => {
+    if (playlists.length >= MAX_PLAYLISTS) {
+      Alert.alert('Limite atteinte', `Vous avez atteint la limite de ${MAX_PLAYLISTS} playlists`);
+      return;
+    }
+    setNewPlaylistName('');
+    setNewPlaylistDesc('');
+    setPlaylistModal(true);
+  };
+
+  const handleCreatePlaylist = async () => {
+    if (!newPlaylistName.trim()) {
+      Alert.alert('Erreur', 'Le nom de la playlist est requis');
+      return;
+    }
+    setSaving(true);
+    try {
+      const newPlaylist = await apiCall('/api/playlists', {
+        method: 'POST',
+        body: JSON.stringify({ name: newPlaylistName.trim(), description: newPlaylistDesc.trim() }),
+      });
+      setPlaylists([newPlaylist, ...playlists]);
+      setPlaylistModal(false);
+    } catch (e: any) {
+      Alert.alert('Erreur', e.message);
+    }
+    setSaving(false);
   };
 
   const handleSave = async () => {
@@ -98,6 +137,7 @@ export default function ProfileScreen() {
         keyExtractor={(item) => item.rating_id}
         renderItem={renderVideo}
         contentContainerStyle={styles.list}
+        extraData={[playlists, friends]}
         ListHeaderComponent={
           <View>
             {/* Header with Settings */}
@@ -184,6 +224,57 @@ export default function ProfileScreen() {
               </View>
             )}
 
+            {/* Playlists Section */}
+            <View style={styles.playlistsSection}>
+              <View style={styles.playlistsHeader}>
+                <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>
+                  Mes playlists
+                </Text>
+                <TouchableOpacity
+                  testID="create-playlist-btn"
+                  style={styles.createPlaylistBtn}
+                  onPress={openCreatePlaylist}
+                  activeOpacity={0.7}
+                >
+                  <MaterialCommunityIcons name="plus" size={20} color={colors.primary} />
+                  <Text style={[styles.createPlaylistText, { color: colors.text_secondary }]}>
+                    Playlist
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              
+              {playlists.length > 0 ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {playlists.map((item) => (
+                    <TouchableOpacity
+                      key={item.playlist_id}
+                      testID={`playlist-${item.playlist_id}`}
+                      style={[styles.playlistCard, { backgroundColor: colors.bg_card }]}
+                      onPress={() => router.push(`/playlist/${item.playlist_id}`)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={[styles.playlistIcon, { backgroundColor: colors.primary + '20' }]}>
+                        <MaterialCommunityIcons name="playlist-play" size={28} color={colors.primary} />
+                      </View>
+                      <Text style={[styles.playlistName, { color: colors.text_primary }]} numberOfLines={1}>
+                        {item.name}
+                      </Text>
+                      <Text style={[styles.playlistCount, { color: colors.text_secondary }]}>
+                        {item.video_count} vidéo{item.video_count !== 1 ? 's' : ''}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              ) : (
+                <Text style={[styles.noPlaylistText, { color: colors.text_secondary }]}>
+                  Créez votre première playlist !
+                </Text>
+              )}
+              <Text style={[styles.playlistLimit, { color: colors.text_secondary }]}>
+                {playlists.length}/{MAX_PLAYLISTS} playlists
+              </Text>
+            </View>
+
             {/* Section title */}
             <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>
               Mes vidéos notées
@@ -264,6 +355,64 @@ export default function ProfileScreen() {
           </KeyboardAvoidingView>
         </View>
       </Modal>
+
+      {/* Create Playlist Modal */}
+      <Modal visible={playlistModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <View style={[styles.editCard, { backgroundColor: colors.bg_root }]}>
+              <View style={styles.editHeader}>
+                <Text style={[styles.editTitle, { color: colors.text_primary }]}>Nouvelle playlist</Text>
+                <TouchableOpacity
+                  testID="close-playlist-modal-btn"
+                  onPress={() => setPlaylistModal(false)}
+                  style={styles.closeEditBtn}
+                >
+                  <MaterialCommunityIcons name="close" size={24} color={colors.text_secondary} />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={[styles.editLabel, { color: colors.text_secondary }]}>Nom de la playlist *</Text>
+              <TextInput
+                testID="playlist-name-input"
+                style={[styles.editInput, { color: colors.text_primary, backgroundColor: colors.bg_overlay, borderColor: colors.border }]}
+                value={newPlaylistName}
+                onChangeText={setNewPlaylistName}
+                placeholder="Ma playlist..."
+                placeholderTextColor={colors.text_secondary}
+                maxLength={50}
+              />
+
+              <Text style={[styles.editLabel, { color: colors.text_secondary }]}>Description (optionnel)</Text>
+              <TextInput
+                testID="playlist-desc-input"
+                style={[styles.editInput, styles.editBioInput, { color: colors.text_primary, backgroundColor: colors.bg_overlay, borderColor: colors.border }]}
+                value={newPlaylistDesc}
+                onChangeText={setNewPlaylistDesc}
+                placeholder="Décrivez votre playlist..."
+                placeholderTextColor={colors.text_secondary}
+                multiline
+                textAlignVertical="top"
+                maxLength={200}
+              />
+
+              <TouchableOpacity
+                testID="create-playlist-submit-btn"
+                style={[styles.saveBtn, { backgroundColor: colors.primary }]}
+                onPress={handleCreatePlaylist}
+                disabled={saving}
+                activeOpacity={0.7}
+              >
+                {saving ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.saveBtnText}>Créer la playlist</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -316,6 +465,62 @@ const styles = StyleSheet.create({
   friendAvatar: { width: 56, height: 56, borderRadius: 28 },
   friendLetter: { color: '#fff', fontSize: 22, fontWeight: '700' },
   friendName: { fontSize: 12, marginTop: 6, textAlign: 'center' },
+  // Playlists
+  playlistsSection: { marginBottom: 20 },
+  playlistsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    marginBottom: 12,
+  },
+  createPlaylistBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  createPlaylistText: {
+    fontSize: 13,
+    fontWeight: '600',
+    opacity: 0.7,
+  },
+  playlistCard: {
+    width: 120,
+    borderRadius: 12,
+    padding: 12,
+    marginRight: 12,
+    alignItems: 'center',
+  },
+  playlistIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  playlistName: {
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  playlistCount: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  noPlaylistText: {
+    fontSize: 14,
+    paddingHorizontal: 4,
+    marginBottom: 8,
+  },
+  playlistLimit: {
+    fontSize: 11,
+    paddingHorizontal: 4,
+    marginTop: 8,
+    opacity: 0.6,
+  },
   videoItem: {
     flexDirection: 'row',
     alignItems: 'center',

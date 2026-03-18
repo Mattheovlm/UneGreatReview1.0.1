@@ -55,6 +55,20 @@ class CommentCreate(BaseModel):
 class FriendRequestCreate(BaseModel):
     to_user_id: str
 
+class PlaylistCreate(BaseModel):
+    name: str
+    description: Optional[str] = ""
+
+class PlaylistUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+class PlaylistAddVideo(BaseModel):
+    youtube_id: str
+    title: str
+    thumbnail: str
+    channel_name: Optional[str] = ""
+
 class ProfileUpdate(BaseModel):
     name: Optional[str] = None
     bio: Optional[str] = None
@@ -596,6 +610,129 @@ async def get_recommendations(request: Request):
             {"user_id": {"$ne": user["user_id"]}}, {"_id": 0}
         ).sort("rating", -1).limit(10).to_list(10)
         return {"ai_recommendations": [], "popular_videos": await enrich_ratings(popular)}
+
+# --- Playlists ---
+MAX_PLAYLISTS = 15
+MAX_VIDEOS_PER_PLAYLIST = 50
+
+@api_router.post("/playlists")
+async def create_playlist(data: PlaylistCreate, request: Request):
+    user = await get_current_user(request)
+    
+    # Check max playlists limit
+    count = await db.playlists.count_documents({"user_id": user["user_id"]})
+    if count >= MAX_PLAYLISTS:
+        raise HTTPException(400, f"Vous avez atteint la limite de {MAX_PLAYLISTS} playlists")
+    
+    playlist_id = f"playlist_{uuid.uuid4().hex[:12]}"
+    playlist = {
+        "playlist_id": playlist_id,
+        "user_id": user["user_id"],
+        "name": data.name.strip(),
+        "description": data.description.strip() if data.description else "",
+        "videos": [],
+        "video_count": 0,
+        "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc)
+    }
+    await db.playlists.insert_one(playlist)
+    del playlist["_id"]
+    return playlist
+
+@api_router.get("/playlists")
+async def get_user_playlists(request: Request):
+    user = await get_current_user(request)
+    playlists = await db.playlists.find(
+        {"user_id": user["user_id"]}, {"_id": 0}
+    ).sort("created_at", -1).to_list(MAX_PLAYLISTS)
+    return playlists
+
+@api_router.get("/playlists/{playlist_id}")
+async def get_playlist(playlist_id: str, request: Request):
+    await get_current_user(request)
+    playlist = await db.playlists.find_one({"playlist_id": playlist_id}, {"_id": 0})
+    if not playlist:
+        raise HTTPException(404, "Playlist non trouvée")
+    # Get owner info
+    owner = await db.users.find_one({"user_id": playlist["user_id"]}, {"_id": 0, "password_hash": 0})
+    if owner:
+        playlist["owner"] = owner
+    return playlist
+
+@api_router.put("/playlists/{playlist_id}")
+async def update_playlist(playlist_id: str, data: PlaylistUpdate, request: Request):
+    user = await get_current_user(request)
+    playlist = await db.playlists.find_one({"playlist_id": playlist_id, "user_id": user["user_id"]})
+    if not playlist:
+        raise HTTPException(404, "Playlist non trouvée")
+    
+    update = {"updated_at": datetime.now(timezone.utc)}
+    if data.name is not None:
+        update["name"] = data.name.strip()
+    if data.description is not None:
+        update["description"] = data.description.strip()
+    
+    await db.playlists.update_one({"playlist_id": playlist_id}, {"$set": update})
+    return await db.playlists.find_one({"playlist_id": playlist_id}, {"_id": 0})
+
+@api_router.delete("/playlists/{playlist_id}")
+async def delete_playlist(playlist_id: str, request: Request):
+    user = await get_current_user(request)
+    result = await db.playlists.delete_one({"playlist_id": playlist_id, "user_id": user["user_id"]})
+    if result.deleted_count == 0:
+        raise HTTPException(404, "Playlist non trouvée")
+    return {"message": "Playlist supprimée"}
+
+@api_router.post("/playlists/{playlist_id}/videos")
+async def add_video_to_playlist(playlist_id: str, data: PlaylistAddVideo, request: Request):
+    user = await get_current_user(request)
+    playlist = await db.playlists.find_one({"playlist_id": playlist_id, "user_id": user["user_id"]})
+    if not playlist:
+        raise HTTPException(404, "Playlist non trouvée")
+    
+    # Check if video already in playlist
+    for v in playlist.get("videos", []):
+        if v["youtube_id"] == data.youtube_id:
+            raise HTTPException(400, "Cette vidéo est déjà dans la playlist")
+    
+    # Check max videos limit
+    if len(playlist.get("videos", [])) >= MAX_VIDEOS_PER_PLAYLIST:
+        raise HTTPException(400, f"Limite de {MAX_VIDEOS_PER_PLAYLIST} vidéos par playlist atteinte")
+    
+    video_entry = {
+        "youtube_id": data.youtube_id,
+        "title": data.title,
+        "thumbnail": data.thumbnail,
+        "channel_name": data.channel_name or "",
+        "added_at": datetime.now(timezone.utc)
+    }
+    
+    await db.playlists.update_one(
+        {"playlist_id": playlist_id},
+        {
+            "$push": {"videos": video_entry},
+            "$inc": {"video_count": 1},
+            "$set": {"updated_at": datetime.now(timezone.utc)}
+        }
+    )
+    return {"message": "Vidéo ajoutée", "video": video_entry}
+
+@api_router.delete("/playlists/{playlist_id}/videos/{youtube_id}")
+async def remove_video_from_playlist(playlist_id: str, youtube_id: str, request: Request):
+    user = await get_current_user(request)
+    playlist = await db.playlists.find_one({"playlist_id": playlist_id, "user_id": user["user_id"]})
+    if not playlist:
+        raise HTTPException(404, "Playlist non trouvée")
+    
+    await db.playlists.update_one(
+        {"playlist_id": playlist_id},
+        {
+            "$pull": {"videos": {"youtube_id": youtube_id}},
+            "$inc": {"video_count": -1},
+            "$set": {"updated_at": datetime.now(timezone.utc)}
+        }
+    )
+    return {"message": "Vidéo retirée"}
 
 # --- Health ---
 @api_router.get("/health")

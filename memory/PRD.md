@@ -17,7 +17,16 @@ Letterboxd pour YouTube - Plateforme sociale de curation de vidéos YouTube.
 - Geste tactile interactif pour la notation (glisser le doigt)
 - Feedback haptique lors de la sélection
 - Commentaire personnel sur la vidéo
-- Détail vidéo en modal transparent (overlay sur la page d'accueil)
+- Détail vidéo en modal transparent (sans bouton X - fermeture par tap extérieur)
+- Bouton "Ajouter à une playlist" dans le modal vidéo
+
+### Playlists (NOUVEAU)
+- Création de playlists (max 15 par utilisateur)
+- 50 vidéos maximum par playlist
+- Ajout de vidéos depuis: modal vidéo, recherche, recommandations
+- Affichage sur le profil avec compteur
+- Suppression de playlist et de vidéos
+- Page détail de playlist
 
 ### Social
 - Système d'amis avec demandes (envoyer/accepter/refuser)
@@ -26,20 +35,20 @@ Letterboxd pour YouTube - Plateforme sociale de curation de vidéos YouTube.
 - Recherche d'utilisateurs pour les ajouter en amis
 
 ### Navigation
-- Barre de navigation personnalisée (CustomTabBar) avec safe area
+- Barre de navigation personnalisée (CustomTabBar)
+- Correspondance par nom de route (pas par index)
 - 5 onglets: Accueil, Recherche, Ajouter (+), Activité, Profil
-- Utilisation de Pressable pour meilleure réactivité tactile
-- Padding dynamique pour éviter les interférences avec l'UI système
+- Safe area padding dynamique
 
 ### Feed
 - Onglet "Amis" : vidéos notées par vos amis
 - Onglet "Découvrir" : toutes les vidéos notées
 - Recommandations IA (OpenAI GPT-4o via Emergent LLM)
-- Recommandations dans le modal vidéo
 
 ### Profil
 - Informations utilisateur (avatar, nom, bio)
 - Statistiques (nombre de vidéos, amis)
+- Section "Mes playlists" avec bouton création
 - Liste des vidéos notées avec demi-étoiles
 
 ### Thème
@@ -53,33 +62,38 @@ Letterboxd pour YouTube - Plateforme sociale de curation de vidéos YouTube.
 - **IA**: OpenAI GPT-4o via Emergent LLM Key
 - **Auth**: JWT + Google OAuth (Emergent Auth)
 
-### Lecteur YouTube
-- Lecteur intégré en iframe (web) avec bouton Play
-- Ouverture externe vers YouTube (native)
-- Badge "Lire la vidéo" sur la miniature
-
-### Édition de Profil
-- Modifier nom et bio via modal
-- Section "Mes amis" horizontale
-- Statistiques (vidéos, amis)
-
 ## Collections MongoDB
 - `users` - Profils utilisateurs
 - `user_sessions` - Sessions d'authentification
-- `video_ratings` - Vidéos notées (rating en float pour demi-étoiles)
+- `video_ratings` - Vidéos notées (rating en float)
 - `comments` - Réactions aux notes
 - `friend_requests` - Demandes d'amis
 - `friendships` - Relations d'amitié
+- `playlists` - Playlists utilisateur (NOUVEAU)
+
+## API Endpoints
+
+### Playlists (NOUVEAU)
+- `POST /api/playlists` - Créer une playlist
+- `GET /api/playlists` - Liste des playlists de l'utilisateur
+- `GET /api/playlists/:id` - Détail d'une playlist
+- `PUT /api/playlists/:id` - Modifier une playlist
+- `DELETE /api/playlists/:id` - Supprimer une playlist
+- `POST /api/playlists/:id/videos` - Ajouter une vidéo
+- `DELETE /api/playlists/:id/videos/:youtubeId` - Retirer une vidéo
 
 ## Changelog
 
+### 2026-03-18
+- **FEATURE**: Système de playlists complet
+  - Max 15 playlists par utilisateur, 50 vidéos par playlist
+  - Création depuis le profil (bouton "+ Playlist")
+  - Ajout de vidéos depuis le modal vidéo
+  - Page détail de playlist avec suppression
+- **FIX**: Correction de la barre de navigation
+  - Correspondance par `route.name` au lieu de l'index
+  - Résolution du problème du bouton "Profil" non cliquable
+
 ### 2026-03-17
 - **FIX**: Amélioration de la barre de navigation (CustomTabBar)
-  - Remplacement de TouchableOpacity par Pressable pour meilleure réactivité
-  - Ajout de padding dynamique basé sur SafeAreaInsets
-  - Minimum 40px de padding en bas pour éviter les interférences avec l'UI système
 - **FEATURE**: Support des demi-étoiles dans les notations
-  - Notes possibles: 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5
-  - Icônes d'étoiles: pleine, demi-remplie, vide
-  - Validation backend mise à jour pour accepter les floats
-  - Affichage des notes avec une décimale (ex: 4.5/5)

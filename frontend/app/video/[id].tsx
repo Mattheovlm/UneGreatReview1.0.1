@@ -9,6 +9,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import { apiCall } from '../../src/utils/api';
 import StarRating from '../../src/components/StarRating';
+import AddToPlaylistModal from '../../src/components/AddToPlaylistModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -122,6 +123,7 @@ export default function VideoDetailScreen() {
   const [commentText, setCommentText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [playlistModal, setPlaylistModal] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -206,14 +208,23 @@ export default function VideoDetailScreen() {
               <Text style={[styles.title, { color: colors.text_primary }]}>{video.title}</Text>
               <View style={styles.channelRow}>
                 <Text style={[styles.channel, { color: colors.text_secondary }]}>{video.channel_name}</Text>
-                <TouchableOpacity
-                  testID="open-youtube-btn"
-                  style={[styles.ytLink, { backgroundColor: colors.bg_overlay }]}
-                  onPress={openOnYouTube}
-                >
-                  <MaterialCommunityIcons name="open-in-new" size={14} color={colors.text_secondary} />
-                  <Text style={[styles.ytLinkText, { color: colors.text_secondary }]}>YouTube</Text>
-                </TouchableOpacity>
+                <View style={styles.actionRow}>
+                  <TouchableOpacity
+                    testID="add-to-playlist-btn"
+                    style={[styles.actionBtn, { backgroundColor: colors.bg_overlay }]}
+                    onPress={() => setPlaylistModal(true)}
+                  >
+                    <MaterialCommunityIcons name="playlist-plus" size={16} color={colors.primary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    testID="open-youtube-btn"
+                    style={[styles.ytLink, { backgroundColor: colors.bg_overlay }]}
+                    onPress={openOnYouTube}
+                  >
+                    <MaterialCommunityIcons name="open-in-new" size={14} color={colors.text_secondary} />
+                    <Text style={[styles.ytLinkText, { color: colors.text_secondary }]}>YouTube</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
 
               {/* Rater info */}
@@ -335,6 +346,18 @@ export default function VideoDetailScreen() {
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Add to Playlist Modal */}
+      <AddToPlaylistModal
+        visible={playlistModal}
+        onClose={() => setPlaylistModal(false)}
+        video={video ? {
+          youtube_id: video.youtube_id,
+          title: video.title,
+          thumbnail: video.thumbnail,
+          channel_name: video.channel_name,
+        } : null}
+      />
     </View>
   );
 }
@@ -362,7 +385,13 @@ const styles = StyleSheet.create({
   channelRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16,
   },
-  channel: { fontSize: 14 },
+  channel: { fontSize: 14, flex: 1 },
+  actionRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+  },
+  actionBtn: {
+    borderRadius: 20, padding: 8,
+  },
   ytLink: {
     flexDirection: 'row', alignItems: 'center', borderRadius: 20,
     paddingHorizontal: 10, paddingVertical: 5, gap: 4,
