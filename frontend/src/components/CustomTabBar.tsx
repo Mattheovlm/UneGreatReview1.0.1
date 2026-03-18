@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
+import { apiCall } from '../utils/api';
 
 // Map route names to their config
 const TAB_CONFIG: Record<string, { label: string; iconActive: string; iconInactive: string; isCenter?: boolean }> = {
@@ -19,6 +20,21 @@ const TAB_ORDER = ['index', 'search', 'add', 'activity', 'profile'];
 export default function CustomTabBar({ state, descriptors, navigation }: any) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const [unreadCount, setUnreadCount] = useState(0);
+  
+  useEffect(() => {
+    const fetchUnread = async () => {
+      try {
+        const data = await apiCall('/api/notifications/unread-count');
+        setUnreadCount(data?.count || 0);
+      } catch (e) {
+        // Ignore errors
+      }
+    };
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30000); // Check every 30s
+    return () => clearInterval(interval);
+  }, []);
   
   const safeBottom = Platform.select({
     ios: Math.max(insets.bottom, 34) + 10,
@@ -53,6 +69,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: any) {
         }
 
         const isFocused = state.routes[state.index]?.name === route.name;
+        const showBadge = route.name === 'activity' && unreadCount > 0;
 
         const onPress = () => {
           const event = navigation.emit({
@@ -93,11 +110,20 @@ export default function CustomTabBar({ state, descriptors, navigation }: any) {
               pressed && { opacity: 0.6, backgroundColor: colors.bg_overlay },
             ]}
           >
-            <MaterialCommunityIcons
-              name={isFocused ? config.iconActive : config.iconInactive}
-              size={24}
-              color={isFocused ? colors.primary : colors.text_secondary}
-            />
+            <View style={styles.iconWrap}>
+              <MaterialCommunityIcons
+                name={isFocused ? config.iconActive : config.iconInactive}
+                size={24}
+                color={isFocused ? colors.primary : colors.text_secondary}
+              />
+              {showBadge && (
+                <View style={[styles.badge, { backgroundColor: colors.error }]}>
+                  <Text style={styles.badgeText}>
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </View>
             <Text
               style={[
                 styles.tabLabel,
@@ -133,6 +159,25 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 6,
     minHeight: 56,
+  },
+  iconWrap: {
+    position: 'relative',
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -8,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: '700',
   },
   tabLabel: {
     fontSize: 10,

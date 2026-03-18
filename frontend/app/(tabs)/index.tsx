@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
   },
   tab: { flex: 1, paddingVertical: 12, alignItems: 'center' },
   tabText: { fontSize: 15, fontWeight: '600' },
-  list: { paddingHorizontal: 16, paddingBottom: 24 },
+  list: { paddingBottom: 24 },
   empty: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 32 },
   emptyTitle: { fontSize: 20, fontWeight: '700', marginTop: 16 },
   emptyText: { fontSize: 15, textAlign: 'center', marginTop: 8, lineHeight: 22 },

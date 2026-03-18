@@ -72,6 +72,12 @@ class PlaylistAddVideo(BaseModel):
 class LikeRating(BaseModel):
     rating_id: str
 
+class NotificationType:
+    FRIEND_RATED = "friend_rated"
+    COMMENT_RECEIVED = "comment_received"
+    LIKE_RECEIVED = "like_received"
+    FRIEND_REQUEST = "friend_request"
+
 class ProfileUpdate(BaseModel):
     name: Optional[str] = None
     bio: Optional[str] = None
@@ -496,8 +502,25 @@ async def rate_video(data: VideoRateRequest, request: Request):
             "title": youtube_info["title"], "thumbnail": youtube_info["thumbnail"],
             "channel_name": youtube_info["channel_name"],
             "rating": data.rating, "comment": data.comment or "",
-            "created_at": datetime.now(timezone.utc)
+            "created_at": datetime.now(timezone.utc),
+            "like_count": 0
         })
+        
+        # Create notifications for all friends
+        friendships = await db.friendships.find(
+            {"$or": [{"user_id": user["user_id"]}, {"friend_id": user["user_id"]}]}, {"_id": 0}
+        ).to_list(100)
+        
+        for f in friendships:
+            friend_id = f["friend_id"] if f["user_id"] == user["user_id"] else f["user_id"]
+            await create_notification(friend_id, NotificationType.FRIEND_RATED, {
+                "rating_id": rating_id,
+                "user_id": user["user_id"],
+                "user_name": user.get("name", "Un ami"),
+                "video_title": youtube_info["title"],
+                "thumbnail": youtube_info["thumbnail"],
+                "rating": data.rating
+            })
     
     return {"rating_id": rating_id, **youtube_info, "rating": data.rating, "comment": data.comment or ""}
 
@@ -851,6 +874,46 @@ async def get_user_badges(user_id: str, request: Request):
         badges.append(BADGES["influenceur"])
     
     return {"badges": badges, "stats": {"total_ratings": rating_count}}
+
+# --- Notifications ---
+async def create_notification(user_id: str, notif_type: str, data: dict):
+    """Create a notification for a user"""
+    notif = {
+        "notification_id": f"notif_{uuid.uuid4().hex[:12]}",
+        "user_id": user_id,
+        "type": notif_type,
+        "data": data,
+        "read": False,
+        "created_at": datetime.now(timezone.utc)
+    }
+    await db.notifications.insert_one(notif)
+    return notif
+
+@api_router.get("/notifications")
+async def get_notifications(request: Request):
+    user = await get_current_user(request)
+    notifs = await db.notifications.find(
+        {"user_id": user["user_id"]}, {"_id": 0}
+    ).sort("created_at", -1).limit(50).to_list(50)
+    return notifs
+
+@api_router.get("/notifications/unread-count")
+async def get_unread_count(request: Request):
+    user = await get_current_user(request)
+    count = await db.notifications.count_documents({
+        "user_id": user["user_id"],
+        "read": False
+    })
+    return {"count": count}
+
+@api_router.post("/notifications/mark-read")
+async def mark_notifications_read(request: Request):
+    user = await get_current_user(request)
+    await db.notifications.update_many(
+        {"user_id": user["user_id"], "read": False},
+        {"$set": {"read": True}}
+    )
+    return {"success": True}
 
 # --- Health ---
 @api_router.get("/health")
