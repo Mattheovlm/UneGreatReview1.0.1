@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, Image, StyleSheet,
   SafeAreaView, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert,
+  Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -18,6 +19,15 @@ export default function AddVideoScreen() {
   const [preview, setPreview] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [fetchingInfo, setFetchingInfo] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  
+  // Animation for preview card
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
+  
+  // Debounce timer ref
+  const debounceTimer = useRef<any>(null);
 
   const extractYoutubeId = (ytUrl: string) => {
     const patterns = [
@@ -32,16 +42,82 @@ export default function AddVideoScreen() {
     return null;
   };
 
+  // Auto-fetch video info when URL changes
+  const fetchVideoInfo = useCallback(async (videoUrl: string) => {
+    const id = extractYoutubeId(videoUrl);
+    if (!id) {
+      setPreview(null);
+      setFetchError(null);
+      return;
+    }
+    
+    setFetchingInfo(true);
+    setFetchError(null);
+    
+    try {
+      const response = await apiCall(`/api/videos/fetch-info?url=${encodeURIComponent(videoUrl)}`);
+      if (response.success) {
+        setPreview({
+          youtube_id: response.youtube_id,
+          title: response.title,
+          thumbnail: response.thumbnail,
+          channel_name: response.channel_name,
+        });
+        // Animate the preview card
+        fadeAnim.setValue(0);
+        slideAnim.setValue(20);
+        Animated.parallel([
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.timing(slideAnim, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      } else {
+        setFetchError(response.error || 'Impossible de récupérer les informations');
+        setPreview(null);
+      }
+    } catch (e: any) {
+      setFetchError('Erreur lors de la récupération');
+      setPreview(null);
+    }
+    setFetchingInfo(false);
+  }, [fadeAnim, slideAnim]);
+
+  // Debounced URL change handler
+  useEffect(() => {
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+    
+    if (url.trim().length > 10) {
+      debounceTimer.current = setTimeout(() => {
+        fetchVideoInfo(url);
+      }, 500); // Wait 500ms after user stops typing
+    } else {
+      setPreview(null);
+      setFetchError(null);
+    }
+    
+    return () => {
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+    };
+  }, [url, fetchVideoInfo]);
+
   const handlePreview = () => {
     const id = extractYoutubeId(url);
     if (!id) {
       Alert.alert('Erreur', 'URL YouTube invalide');
       return;
     }
-    setPreview({
-      youtube_id: id,
-      thumbnail: `https://img.youtube.com/vi/${id}/hqdefault.jpg`,
-    });
+    fetchVideoInfo(url);
   };
 
   const handleSubmit = async () => {
@@ -95,13 +171,65 @@ export default function AddVideoScreen() {
             </TouchableOpacity>
           </View>
 
-          {preview && (
-            <View style={[styles.previewCard, { backgroundColor: colors.bg_card }]}>
-              <Image source={{ uri: preview.thumbnail }} style={styles.previewThumb} resizeMode="cover" />
-              <View style={styles.previewOverlay}>
-                <MaterialCommunityIcons name="play-circle" size={48} color="rgba(255,255,255,0.9)" />
-              </View>
+          {/* Loading indicator */}
+          {fetchingInfo && (
+            <View style={[styles.fetchingContainer, { backgroundColor: colors.bg_card }]}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={[styles.fetchingText, { color: colors.text_secondary }]}>
+                Récupération des informations...
+              </Text>
             </View>
+          )}
+
+          {/* Fetch error */}
+          {fetchError && !fetchingInfo && (
+            <View style={[styles.errorContainer, { backgroundColor: '#EF444420' }]}>
+              <MaterialCommunityIcons name="alert-circle" size={20} color="#EF4444" />
+              <Text style={styles.errorText}>{fetchError}</Text>
+            </View>
+          )}
+
+          {/* Video preview card */}
+          {preview && !fetchingInfo && (
+            <Animated.View 
+              style={[
+                styles.previewCard, 
+                { 
+                  backgroundColor: colors.bg_card,
+                  opacity: fadeAnim,
+                  transform: [{ translateY: slideAnim }]
+                }
+              ]}
+            >
+              <View style={styles.previewImageContainer}>
+                <Image source={{ uri: preview.thumbnail }} style={styles.previewThumb} resizeMode="cover" />
+                <View style={styles.previewOverlay}>
+                  <MaterialCommunityIcons name="play-circle" size={48} color="rgba(255,255,255,0.9)" />
+                </View>
+                <View style={styles.youtubeTag}>
+                  <MaterialCommunityIcons name="youtube" size={14} color="#FF0000" />
+                  <Text style={styles.youtubeTagText}>YouTube</Text>
+                </View>
+              </View>
+              
+              <View style={styles.previewInfo}>
+                <Text style={[styles.previewTitle, { color: colors.text_primary }]} numberOfLines={2}>
+                  {preview.title}
+                </Text>
+                <View style={styles.channelRow}>
+                  <MaterialCommunityIcons name="account-circle" size={16} color={colors.text_secondary} />
+                  <Text style={[styles.channelName, { color: colors.text_secondary }]} numberOfLines={1}>
+                    {preview.channel_name}
+                  </Text>
+                </View>
+                <View style={[styles.successBadge, { backgroundColor: colors.primary + '20' }]}>
+                  <MaterialCommunityIcons name="check-circle" size={14} color={colors.primary} />
+                  <Text style={[styles.successBadgeText, { color: colors.primary }]}>
+                    Vidéo détectée - Prête à noter !
+                  </Text>
+                </View>
+              </View>
+            </Animated.View>
           )}
 
           <View style={styles.ratingSection}>
@@ -170,15 +298,105 @@ const styles = StyleSheet.create({
   },
   urlInput: { flex: 1, fontSize: 15 },
   previewBtn: { borderRadius: 8, padding: 8 },
-  previewCard: {
-    borderRadius: 12, overflow: 'hidden', marginTop: 16, position: 'relative',
+  
+  // Fetching indicator
+  fetchingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    marginTop: 16,
+    borderRadius: 12,
+    gap: 10,
   },
-  previewThumb: { width: '100%', aspectRatio: 16 / 9 },
+  fetchingText: {
+    fontSize: 14,
+  },
+  
+  // Error container
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    marginTop: 16,
+    borderRadius: 10,
+    gap: 8,
+  },
+  errorText: {
+    color: '#EF4444',
+    fontSize: 13,
+    flex: 1,
+  },
+  
+  // Preview card
+  previewCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginTop: 16,
+  },
+  previewImageContainer: {
+    position: 'relative',
+  },
+  previewThumb: { 
+    width: '100%', 
+    aspectRatio: 16 / 9,
+  },
   previewOverlay: {
     ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center', alignItems: 'center',
+    justifyContent: 'center', 
+    alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.3)',
   },
+  youtubeTag: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 4,
+  },
+  youtubeTagText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#333',
+  },
+  previewInfo: {
+    padding: 14,
+  },
+  previewTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  channelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
+  },
+  channelName: {
+    fontSize: 13,
+    flex: 1,
+  },
+  successBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 6,
+    alignSelf: 'flex-start',
+  },
+  successBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  
   ratingSection: { marginTop: 24 },
   sectionTitle: { fontSize: 18, fontWeight: '700', marginBottom: 4 },
   sectionSub: { fontSize: 13, marginBottom: 12 },

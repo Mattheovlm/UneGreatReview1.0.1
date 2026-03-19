@@ -29,8 +29,8 @@ print('User ID: ' + userId);
 
 ## Step 2: Test Backend API
 ```bash
-curl -X GET "https://ratemyfilm.preview.emergentagent.com/api/auth/me" -H "Authorization: Bearer YOUR_SESSION_TOKEN"
-curl -X POST "https://ratemyfilm.preview.emergentagent.com/api/videos/rate" -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_SESSION_TOKEN" -d '{"youtube_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "rating": 5, "comment": "Classic!"}'
+curl -X GET "https://rate-reels.preview.emergentagent.com/api/auth/me" -H "Authorization: Bearer YOUR_SESSION_TOKEN"
+curl -X POST "https://rate-reels.preview.emergentagent.com/api/videos/rate" -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_SESSION_TOKEN" -d '{"youtube_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "rating": 5, "comment": "Classic!"}'
 ```
 
 ## Step 3: Browser Testing
@@ -44,5 +44,5 @@ await page.context.add_cookies([{
     "secure": True,
     "sameSite": "None"
 }])
-await page.goto("https://ratemyfilm.preview.emergentagent.com")
+await page.goto("https://rate-reels.preview.emergentagent.com")
 ```

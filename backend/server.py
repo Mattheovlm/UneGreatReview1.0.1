@@ -298,6 +298,179 @@ async def update_profile(data: ProfileUpdate, request: Request):
         await db.users.update_one({"user_id": user["user_id"]}, {"$set": update})
     return await db.users.find_one({"user_id": user["user_id"]}, {"_id": 0, "password_hash": 0})
 
+# --- Taste Analysis ---
+@api_router.get("/users/{user_id}/taste-analysis")
+async def get_taste_analysis(user_id: str, request: Request):
+    await get_current_user(request)
+    
+    # Get all user ratings
+    ratings = await db.video_ratings.find(
+        {"user_id": user_id}, {"_id": 0}
+    ).to_list(500)
+    
+    if not ratings:
+        return {
+            "total_ratings": 0,
+            "average_rating": 0,
+            "critic_type": "Nouveau",
+            "critic_emoji": "🌱",
+            "favorite_genres": [],
+            "rating_distribution": {}
+        }
+    
+    # Calculate average
+    total = sum(r["rating"] for r in ratings)
+    average = round(total / len(ratings), 1)
+    
+    # Determine critic type based on average
+    if average <= 2.5:
+        critic_type = "Sévère"
+        critic_emoji = "🧊"
+    elif average <= 3.5:
+        critic_type = "Équilibré"
+        critic_emoji = "⚖️"
+    else:
+        critic_type = "Enthousiaste"
+        critic_emoji = "🔥"
+    
+    # Analyze genres from video titles (simple keyword matching)
+    genre_keywords = {
+        "Gaming": ["gaming", "game", "jeux", "minecraft", "fortnite", "playstation", "xbox", "nintendo", "gameplay", "let's play"],
+        "Musique": ["music", "musique", "song", "clip", "album", "concert", "live", "cover", "remix"],
+        "Science": ["science", "physics", "math", "experiment", "research", "study", "documentary"],
+        "Tech": ["tech", "technology", "iphone", "android", "computer", "programming", "code", "software"],
+        "Comédie": ["comedy", "funny", "humour", "humor", "prank", "fail", "meme", "rire", "blague"],
+        "Sport": ["sport", "football", "soccer", "basketball", "tennis", "gym", "fitness", "workout"],
+        "Vlog": ["vlog", "daily", "life", "routine", "day in"],
+        "Cinéma": ["movie", "film", "trailer", "cinema", "review", "critique", "actor"],
+        "Éducation": ["tutorial", "learn", "how to", "course", "lesson", "education", "guide"]
+    }
+    
+    genre_counts = {genre: 0 for genre in genre_keywords}
+    for r in ratings:
+        title_lower = r.get("title", "").lower()
+        for genre, keywords in genre_keywords.items():
+            if any(kw in title_lower for kw in keywords):
+                genre_counts[genre] += 1
+    
+    # Get top genres
+    sorted_genres = sorted(genre_counts.items(), key=lambda x: x[1], reverse=True)
+    favorite_genres = [{"name": g[0], "count": g[1]} for g in sorted_genres if g[1] > 0][:3]
+    
+    # Rating distribution
+    distribution = {str(i): 0 for i in [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5]}
+    for r in ratings:
+        key = str(r["rating"])
+        if key in distribution:
+            distribution[key] += 1
+    
+    return {
+        "total_ratings": len(ratings),
+        "average_rating": average,
+        "critic_type": critic_type,
+        "critic_emoji": critic_emoji,
+        "favorite_genres": favorite_genres,
+        "rating_distribution": distribution
+    }
+
+# --- Duel de Critiques ---
+@api_router.get("/videos/{rating_id}/duel")
+async def get_video_duel(rating_id: str, request: Request):
+    await get_current_user(request)
+    
+    # Get the video info from the rating
+    rating = await db.video_ratings.find_one({"rating_id": rating_id}, {"_id": 0})
+    if not rating:
+        raise HTTPException(404, "Rating not found")
+    
+    # Get all ratings for this video (by youtube_id)
+    all_ratings = await db.video_ratings.find(
+        {"youtube_id": rating["youtube_id"]}, {"_id": 0}
+    ).to_list(100)
+    
+    if len(all_ratings) < 2:
+        return {"show_duel": False, "message": "Pas assez de notes pour un duel"}
+    
+    # Find highest and lowest
+    sorted_ratings = sorted(all_ratings, key=lambda x: x["rating"])
+    lowest = sorted_ratings[0]
+    highest = sorted_ratings[-1]
+    
+    # Calculate gap
+    gap = highest["rating"] - lowest["rating"]
+    show_duel = gap >= 2  # Show duel if gap is 2 or more
+    
+    # Enrich with user info
+    async def enrich_rating(r):
+        user = await db.users.find_one({"user_id": r["user_id"]}, {"_id": 0, "password_hash": 0})
+        return {**r, "user": user}
+    
+    return {
+        "show_duel": show_duel,
+        "gap": gap,
+        "total_ratings": len(all_ratings),
+        "highest": await enrich_rating(highest),
+        "lowest": await enrich_rating(lowest)
+    }
+
+@api_router.get("/videos/controversial")
+async def get_controversial_videos(request: Request):
+    """Get videos with the biggest rating gaps (debates)"""
+    await get_current_user(request)
+    
+    # Aggregate to find videos with max gap
+    pipeline = [
+        {"$group": {
+            "_id": "$youtube_id",
+            "title": {"$first": "$title"},
+            "thumbnail": {"$first": "$thumbnail"},
+            "channel_name": {"$first": "$channel_name"},
+            "max_rating": {"$max": "$rating"},
+            "min_rating": {"$min": "$rating"},
+            "avg_rating": {"$avg": "$rating"},
+            "count": {"$sum": 1},
+            "sample_rating_id": {"$first": "$rating_id"}
+        }},
+        {"$match": {"count": {"$gte": 2}}},  # At least 2 ratings
+        {"$addFields": {"gap": {"$subtract": ["$max_rating", "$min_rating"]}}},
+        {"$match": {"gap": {"$gte": 2}}},  # Gap of at least 2 stars
+        {"$sort": {"gap": -1}},
+        {"$limit": 5}
+    ]
+    
+    results = await db.video_ratings.aggregate(pipeline).to_list(5)
+    
+    return [{
+        "youtube_id": r["_id"],
+        "title": r["title"],
+        "thumbnail": r["thumbnail"],
+        "channel_name": r["channel_name"],
+        "rating_id": r["sample_rating_id"],
+        "gap": r["gap"],
+        "max_rating": r["max_rating"],
+        "min_rating": r["min_rating"],
+        "avg_rating": round(r["avg_rating"], 1),
+        "rating_count": r["count"]
+    } for r in results]
+
+# --- Video Info Fetch ---
+@api_router.get("/videos/fetch-info")
+async def fetch_video_info(url: str, request: Request):
+    """Fetch video info from URL before rating"""
+    await get_current_user(request)
+    
+    try:
+        info = await get_youtube_info(url)
+        return {
+            "success": True,
+            "youtube_id": info["youtube_id"],
+            "title": info["title"],
+            "thumbnail": info["thumbnail"],
+            "channel_name": info["channel_name"]
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 # --- Friends ---
 @api_router.post("/friends/request")
 async def send_friend_request(data: FriendRequestCreate, request: Request):
