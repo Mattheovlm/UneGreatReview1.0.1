@@ -94,9 +94,19 @@ export default function VideoCard({ rating, onPress }: VideoCardProps) {
         <View style={styles.ratingBadge}>
           <MaterialCommunityIcons name="star" size={14} color="#E11D48" />
           <Text style={styles.ratingText}>
-            {rating.rating % 1 === 0 ? rating.rating : rating.rating.toFixed(1)}/5
+            {rating.avg_rating 
+              ? (rating.avg_rating % 1 === 0 ? rating.avg_rating : rating.avg_rating.toFixed(1))
+              : (rating.rating % 1 === 0 ? rating.rating : rating.rating.toFixed(1))}/5
           </Text>
         </View>
+        
+        {/* Rating count badge - show if multiple ratings */}
+        {(rating.rating_count || 0) > 1 && (
+          <View style={[styles.ratingCountBadge, { backgroundColor: colors.secondary }]}>
+            <MaterialCommunityIcons name="account-group" size={12} color="#fff" />
+            <Text style={styles.ratingCountText}>{rating.rating_count} avis</Text>
+          </View>
+        )}
         
         {/* Like count badge */}
         {(rating.like_count || 0) > 0 && (
@@ -223,6 +233,22 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     fontWeight: '700',
+  },
+  ratingCountBadge: {
+    position: 'absolute',
+    top: 48,
+    right: 12,
+    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    gap: 4,
+  },
+  ratingCountText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '600',
   },
   content: {
     padding: 14,

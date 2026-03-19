@@ -790,6 +790,7 @@ async def rate_video(data: VideoRateRequest, request: Request):
 
 @api_router.get("/videos/feed")
 async def get_feed(request: Request, skip: int = 0, limit: int = 20):
+    """Get feed with unique videos (no duplicates). Each video shows once with latest rating."""
     user = await get_current_user(request)
     friendships = await db.friendships.find(
         {"$or": [{"user_id": user["user_id"]}, {"friend_id": user["user_id"]}]}, {"_id": 0}
@@ -799,17 +800,111 @@ async def get_feed(request: Request, skip: int = 0, limit: int = 20):
     for f in friendships:
         friend_ids.append(f["friend_id"] if f["user_id"] == user["user_id"] else f["user_id"])
     
-    ratings = await db.video_ratings.find(
-        {"user_id": {"$in": friend_ids}}, {"_id": 0}
-    ).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    # Aggregate to get unique videos by youtube_id
+    # Shows the most recent rating for each video, with average rating and rating count
+    pipeline = [
+        {"$match": {"user_id": {"$in": friend_ids}}},
+        {"$sort": {"created_at": -1}},
+        {"$group": {
+            "_id": "$youtube_id",
+            "rating_id": {"$first": "$rating_id"},
+            "user_id": {"$first": "$user_id"},
+            "youtube_url": {"$first": "$youtube_url"},
+            "youtube_id": {"$first": "$youtube_id"},
+            "title": {"$first": "$title"},
+            "thumbnail": {"$first": "$thumbnail"},
+            "channel_name": {"$first": "$channel_name"},
+            "rating": {"$first": "$rating"},
+            "comment": {"$first": "$comment"},
+            "created_at": {"$first": "$created_at"},
+            "like_count": {"$first": {"$ifNull": ["$like_count", 0]}},
+            "avg_rating": {"$avg": "$rating"},
+            "rating_count": {"$sum": 1},
+            "all_user_ids": {"$push": "$user_id"}
+        }},
+        {"$sort": {"created_at": -1}},
+        {"$skip": skip},
+        {"$limit": limit}
+    ]
     
-    return await enrich_ratings(ratings)
+    results = await db.video_ratings.aggregate(pipeline).to_list(limit)
+    
+    # Enrich with user info
+    enriched = []
+    for r in results:
+        u = await db.users.find_one({"user_id": r["user_id"]}, {"_id": 0, "password_hash": 0})
+        enriched.append({
+            "rating_id": r["rating_id"],
+            "user_id": r["user_id"],
+            "youtube_url": r["youtube_url"],
+            "youtube_id": r["youtube_id"],
+            "title": r["title"],
+            "thumbnail": r["thumbnail"],
+            "channel_name": r.get("channel_name", ""),
+            "rating": r["rating"],
+            "comment": r.get("comment", ""),
+            "created_at": r["created_at"],
+            "like_count": r.get("like_count", 0),
+            "avg_rating": round(r.get("avg_rating", r["rating"]), 1),
+            "rating_count": r.get("rating_count", 1),
+            "user": u
+        })
+    
+    return enriched
 
 @api_router.get("/videos/discover")
 async def discover_videos(request: Request, skip: int = 0, limit: int = 20):
+    """Discover unique videos from all users (no duplicates)"""
     await get_current_user(request)
-    ratings = await db.video_ratings.find({}, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
-    return await enrich_ratings(ratings)
+    
+    # Aggregate to get unique videos by youtube_id
+    pipeline = [
+        {"$sort": {"created_at": -1}},
+        {"$group": {
+            "_id": "$youtube_id",
+            "rating_id": {"$first": "$rating_id"},
+            "user_id": {"$first": "$user_id"},
+            "youtube_url": {"$first": "$youtube_url"},
+            "youtube_id": {"$first": "$youtube_id"},
+            "title": {"$first": "$title"},
+            "thumbnail": {"$first": "$thumbnail"},
+            "channel_name": {"$first": "$channel_name"},
+            "rating": {"$first": "$rating"},
+            "comment": {"$first": "$comment"},
+            "created_at": {"$first": "$created_at"},
+            "like_count": {"$first": {"$ifNull": ["$like_count", 0]}},
+            "avg_rating": {"$avg": "$rating"},
+            "rating_count": {"$sum": 1}
+        }},
+        {"$sort": {"created_at": -1}},
+        {"$skip": skip},
+        {"$limit": limit}
+    ]
+    
+    results = await db.video_ratings.aggregate(pipeline).to_list(limit)
+    
+    # Enrich with user info
+    enriched = []
+    for r in results:
+        u = await db.users.find_one({"user_id": r["user_id"]}, {"_id": 0, "password_hash": 0})
+        enriched.append({
+            "rating_id": r["rating_id"],
+            "user_id": r["user_id"],
+            "youtube_url": r["youtube_url"],
+            "youtube_id": r["youtube_id"],
+            "title": r["title"],
+            "thumbnail": r["thumbnail"],
+            "channel_name": r.get("channel_name", ""),
+            "rating": r["rating"],
+            "comment": r.get("comment", ""),
+            "created_at": r["created_at"],
+            "like_count": r.get("like_count", 0),
+            "avg_rating": round(r.get("avg_rating", r["rating"]), 1),
+            "rating_count": r.get("rating_count", 1),
+            "user": u
+        })
+    
+    return enriched
 
 @api_router.get("/videos/search")
 async def search_videos(q: str, request: Request):
