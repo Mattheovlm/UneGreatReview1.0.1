@@ -471,6 +471,97 @@ async def fetch_video_info(url: str, request: Request):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
+@api_router.get("/videos/my-rating/{youtube_id}")
+async def get_my_rating_for_video(youtube_id: str, request: Request):
+    """Check if current user has rated this video"""
+    user = await get_current_user(request)
+    
+    rating = await db.video_ratings.find_one(
+        {"user_id": user["user_id"], "youtube_id": youtube_id},
+        {"_id": 0}
+    )
+    
+    if rating:
+        return {"has_rated": True, "rating": rating}
+    return {"has_rated": False, "rating": None}
+
+@api_router.post("/videos/rate-by-id")
+async def rate_video_by_youtube_id(request: Request):
+    """Rate a video by youtube_id (for rating videos from detail page)"""
+    user = await get_current_user(request)
+    body = await request.json()
+    
+    youtube_id = body.get("youtube_id")
+    rating_value = body.get("rating")
+    comment = body.get("comment", "")
+    title = body.get("title", "YouTube Video")
+    thumbnail = body.get("thumbnail", "")
+    channel_name = body.get("channel_name", "")
+    
+    if not youtube_id or not rating_value:
+        raise HTTPException(400, "youtube_id and rating are required")
+    
+    # Validate rating
+    if rating_value < 0.5 or rating_value > 5 or (rating_value * 2) % 1 != 0:
+        raise HTTPException(400, "Rating must be between 0.5 and 5 in 0.5 increments")
+    
+    # Check if user already rated this video
+    existing = await db.video_ratings.find_one({
+        "user_id": user["user_id"], "youtube_id": youtube_id
+    })
+    
+    if existing:
+        # Update existing rating
+        await db.video_ratings.update_one(
+            {"rating_id": existing["rating_id"]},
+            {"$set": {
+                "rating": rating_value, 
+                "comment": comment,
+                "updated_at": datetime.now(timezone.utc)
+            }}
+        )
+        rating_id = existing["rating_id"]
+    else:
+        # Create new rating
+        rating_id = f"rating_{uuid.uuid4().hex[:12]}"
+        await db.video_ratings.insert_one({
+            "rating_id": rating_id,
+            "user_id": user["user_id"],
+            "youtube_url": f"https://www.youtube.com/watch?v={youtube_id}",
+            "youtube_id": youtube_id,
+            "title": title,
+            "thumbnail": thumbnail or f"https://img.youtube.com/vi/{youtube_id}/hqdefault.jpg",
+            "channel_name": channel_name,
+            "rating": rating_value,
+            "comment": comment,
+            "created_at": datetime.now(timezone.utc),
+            "like_count": 0
+        })
+        
+        # Create notifications for friends
+        friendships = await db.friendships.find(
+            {"$or": [{"user_id": user["user_id"]}, {"friend_id": user["user_id"]}]}, {"_id": 0}
+        ).to_list(100)
+        
+        for f in friendships:
+            friend_id = f["friend_id"] if f["user_id"] == user["user_id"] else f["user_id"]
+            await create_notification(friend_id, NotificationType.FRIEND_RATED, {
+                "rating_id": rating_id,
+                "user_id": user["user_id"],
+                "user_name": user.get("name", "Un ami"),
+                "video_title": title,
+                "thumbnail": thumbnail,
+                "rating": rating_value
+            })
+    
+    return {
+        "rating_id": rating_id,
+        "youtube_id": youtube_id,
+        "rating": rating_value,
+        "comment": comment,
+        "is_update": existing is not None
+    }
+
 # --- Friends ---
 @api_router.post("/friends/request")
 async def send_friend_request(data: FriendRequestCreate, request: Request):
@@ -731,19 +822,56 @@ async def search_videos(q: str, request: Request):
 # Top 3 of the Week - MUST be before /videos/{rating_id}
 @api_router.get("/videos/top-week")
 async def get_top_week(request: Request):
-    # Get ratings from the last 7 days, sorted by like_count
+    """Get top 5 rated videos from the last 7 days, sorted by average rating"""
     week_ago = datetime.now(timezone.utc) - timedelta(days=7)
     
-    top_ratings = await db.video_ratings.find(
-        {"created_at": {"$gte": week_ago}},
-        {"_id": 0}
-    ).sort("like_count", -1).limit(3).to_list(3)
+    # Aggregate to get videos with their average rating from the past week
+    pipeline = [
+        {"$match": {"created_at": {"$gte": week_ago}}},
+        {"$group": {
+            "_id": "$youtube_id",
+            "title": {"$first": "$title"},
+            "thumbnail": {"$first": "$thumbnail"},
+            "channel_name": {"$first": "$channel_name"},
+            "avg_rating": {"$avg": "$rating"},
+            "rating_count": {"$sum": 1},
+            "total_likes": {"$sum": {"$ifNull": ["$like_count", 0]}},
+            "sample_rating_id": {"$first": "$rating_id"},
+            "latest_created": {"$max": "$created_at"}
+        }},
+        {"$match": {"rating_count": {"$gte": 1}}},  # At least 1 rating
+        {"$sort": {"avg_rating": -1, "rating_count": -1, "total_likes": -1}},  # Sort by avg rating, then count, then likes
+        {"$limit": 5}  # Maximum 5 videos
+    ]
     
-    # Enrich with user info
+    results = await db.video_ratings.aggregate(pipeline).to_list(5)
+    
+    # Enrich with user info from the first rater
     enriched = []
-    for r in top_ratings:
-        user = await db.users.find_one({"user_id": r["user_id"]}, {"_id": 0, "password_hash": 0})
-        enriched.append({**r, "user": user})
+    for r in results:
+        # Get the first user who rated this video
+        first_rating = await db.video_ratings.find_one(
+            {"youtube_id": r["_id"]}, 
+            {"_id": 0, "user_id": 1, "rating_id": 1}
+        )
+        user = None
+        if first_rating:
+            user = await db.users.find_one(
+                {"user_id": first_rating["user_id"]}, 
+                {"_id": 0, "password_hash": 0}
+            )
+        
+        enriched.append({
+            "youtube_id": r["_id"],
+            "title": r["title"],
+            "thumbnail": r["thumbnail"],
+            "channel_name": r["channel_name"],
+            "rating_id": r["sample_rating_id"],
+            "avg_rating": round(r["avg_rating"], 1),
+            "rating_count": r["rating_count"],
+            "like_count": r["total_likes"],
+            "user": user
+        })
     
     return enriched
 

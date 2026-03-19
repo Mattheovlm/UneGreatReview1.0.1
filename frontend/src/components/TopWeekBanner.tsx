@@ -9,8 +9,10 @@ interface TopVideo {
   youtube_id: string;
   title: string;
   thumbnail: string;
-  rating: number;
-  like_count: number;
+  avg_rating?: number;
+  rating?: number;
+  rating_count?: number;
+  like_count?: number;
   user?: {
     name: string;
     picture?: string;
@@ -27,44 +29,59 @@ export default function TopWeekBanner({ videos }: TopWeekBannerProps) {
 
   if (!videos || videos.length === 0) return null;
 
-  const medals = ['🥇', '🥈', '🥉'];
+  const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg_card }]}>
       <View style={styles.header}>
         <MaterialCommunityIcons name="trophy" size={20} color="#FFD700" />
-        <Text style={[styles.title, { color: colors.text_primary }]}>Top 3 de la semaine</Text>
+        <Text style={[styles.title, { color: colors.text_primary }]}>Top de la semaine</Text>
+        <Text style={[styles.subtitle, { color: colors.text_secondary }]}>
+          Meilleures notes
+        </Text>
       </View>
       
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.list}>
-        {videos.map((video, index) => (
-          <TouchableOpacity
-            key={video.rating_id}
-            testID={`top-video-${index}`}
-            style={styles.videoCard}
-            onPress={() => router.push(`/video/${video.rating_id}`)}
-            activeOpacity={0.8}
-          >
-            <View style={styles.thumbnailWrap}>
-              <Image source={{ uri: video.thumbnail }} style={styles.thumbnail} resizeMode="cover" />
-              <View style={styles.medalBadge}>
-                <Text style={styles.medalEmoji}>{medals[index]}</Text>
+        {videos.slice(0, 5).map((video, index) => {
+          const displayRating = video.avg_rating || video.rating || 0;
+          return (
+            <TouchableOpacity
+              key={video.rating_id || video.youtube_id}
+              testID={`top-video-${index}`}
+              style={styles.videoCard}
+              onPress={() => router.push(`/video/${video.rating_id}`)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.thumbnailWrap}>
+                <Image source={{ uri: video.thumbnail }} style={styles.thumbnail} resizeMode="cover" />
+                <View style={styles.medalBadge}>
+                  <Text style={styles.medalEmoji}>{medals[index]}</Text>
+                </View>
+                <View style={[styles.ratingBadge, { backgroundColor: colors.primary }]}>
+                  <MaterialCommunityIcons name="star" size={10} color="#fff" />
+                  <Text style={styles.ratingText}>
+                    {typeof displayRating === 'number' ? displayRating.toFixed(1) : displayRating}
+                  </Text>
+                </View>
               </View>
-              <View style={[styles.likeBadge, { backgroundColor: colors.primary }]}>
-                <MaterialCommunityIcons name="heart" size={10} color="#fff" />
-                <Text style={styles.likeCount}>{video.like_count || 0}</Text>
-              </View>
-            </View>
-            <Text style={[styles.videoTitle, { color: colors.text_primary }]} numberOfLines={2}>
-              {video.title}
-            </Text>
-            {video.user && (
-              <Text style={[styles.userName, { color: colors.text_secondary }]} numberOfLines={1}>
-                par {video.user.name}
+              <Text style={[styles.videoTitle, { color: colors.text_primary }]} numberOfLines={2}>
+                {video.title}
               </Text>
-            )}
-          </TouchableOpacity>
-        ))}
+              <View style={styles.metaRow}>
+                {video.rating_count && video.rating_count > 1 && (
+                  <Text style={[styles.metaText, { color: colors.text_secondary }]}>
+                    {video.rating_count} avis
+                  </Text>
+                )}
+                {video.user && (
+                  <Text style={[styles.userName, { color: colors.text_secondary }]} numberOfLines={1}>
+                    par {video.user.name}
+                  </Text>
+                )}
+              </View>
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
     </View>
   );
@@ -80,6 +97,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: 8,
     marginBottom: 12,
   },
@@ -87,11 +105,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
+  subtitle: {
+    fontSize: 12,
+    marginLeft: 'auto',
+  },
   list: {
     gap: 12,
   },
   videoCard: {
-    width: 120,
+    width: 130,
   },
   thumbnailWrap: {
     position: 'relative',
@@ -99,8 +121,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   thumbnail: {
-    width: 120,
-    height: 68,
+    width: 130,
+    height: 73,
     borderRadius: 10,
   },
   medalBadge: {
@@ -111,7 +133,7 @@ const styles = StyleSheet.create({
   medalEmoji: {
     fontSize: 18,
   },
-  likeBadge: {
+  ratingBadge: {
     position: 'absolute',
     bottom: 4,
     right: 4,
@@ -122,7 +144,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     gap: 2,
   },
-  likeCount: {
+  ratingText: {
     color: '#fff',
     fontSize: 10,
     fontWeight: '700',
@@ -133,8 +155,17 @@ const styles = StyleSheet.create({
     marginTop: 6,
     lineHeight: 15,
   },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 2,
+  },
+  metaText: {
+    fontSize: 10,
+  },
   userName: {
     fontSize: 10,
-    marginTop: 2,
+    flex: 1,
   },
 });

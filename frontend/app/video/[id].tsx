@@ -128,6 +128,13 @@ export default function VideoDetailScreen() {
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [liking, setLiking] = useState(false);
+  
+  // New states for rating functionality
+  const [myRating, setMyRating] = useState<number>(0);
+  const [myComment, setMyComment] = useState('');
+  const [hasRated, setHasRated] = useState(false);
+  const [showRatingSection, setShowRatingSection] = useState(false);
+  const [submittingRating, setSubmittingRating] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -142,6 +149,20 @@ export default function VideoDetailScreen() {
         setLikeCount(detail?.like_count || 0);
         const filtered = Array.isArray(recos) ? recos.filter((r: any) => r.rating_id !== id) : [];
         setRecommendations(filtered.slice(0, 5));
+        
+        // Check if current user has rated this video
+        if (detail?.youtube_id) {
+          try {
+            const myRatingData = await apiCall(`/api/videos/my-rating/${detail.youtube_id}`);
+            if (myRatingData.has_rated) {
+              setHasRated(true);
+              setMyRating(myRatingData.rating.rating);
+              setMyComment(myRatingData.rating.comment || '');
+            }
+          } catch (e) {
+            console.log('Could not fetch user rating');
+          }
+        }
       } catch (e) {
         console.error('Video detail error:', e);
       }
@@ -180,6 +201,30 @@ export default function VideoDetailScreen() {
       console.error('Comment error:', e);
     }
     setSubmitting(false);
+  };
+
+  const handleSubmitRating = async () => {
+    if (myRating === 0 || submittingRating) return;
+    setSubmittingRating(true);
+    try {
+      await apiCall('/api/videos/rate-by-id', {
+        method: 'POST',
+        body: JSON.stringify({
+          youtube_id: video.youtube_id,
+          rating: myRating,
+          comment: myComment,
+          title: video.title,
+          thumbnail: video.thumbnail,
+          channel_name: video.channel_name,
+        }),
+      });
+      setHasRated(true);
+      setShowRatingSection(false);
+      // Show success feedback could be added here
+    } catch (e) {
+      console.error('Rating error:', e);
+    }
+    setSubmittingRating(false);
   };
 
   const openOnYouTube = () => {
@@ -305,6 +350,79 @@ export default function VideoDetailScreen() {
                   </Text>
                 ) : null}
               </View>
+
+              {/* My Rating Section */}
+              {!showRatingSection && (
+                <TouchableOpacity
+                  testID="rate-video-btn"
+                  style={[styles.rateVideoBtn, { backgroundColor: hasRated ? colors.bg_card : colors.primary }]}
+                  onPress={() => setShowRatingSection(true)}
+                >
+                  <MaterialCommunityIcons 
+                    name={hasRated ? "star-check" : "star-plus-outline"} 
+                    size={20} 
+                    color={hasRated ? colors.primary : '#fff'} 
+                  />
+                  <Text style={[styles.rateVideoBtnText, { color: hasRated ? colors.primary : '#fff' }]}>
+                    {hasRated ? `Ma note : ${myRating}/5 - Modifier` : 'Noter cette vidéo'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {showRatingSection && (
+                <View style={[styles.myRatingCard, { backgroundColor: colors.bg_card }]}>
+                  <View style={styles.myRatingHeader}>
+                    <Text style={[styles.myRatingTitle, { color: colors.text_primary }]}>
+                      {hasRated ? 'Modifier ma note' : 'Ma note pour cette vidéo'}
+                    </Text>
+                    <TouchableOpacity onPress={() => setShowRatingSection(false)}>
+                      <MaterialCommunityIcons name="close" size={22} color={colors.text_secondary} />
+                    </TouchableOpacity>
+                  </View>
+                  
+                  <View style={styles.myRatingStars}>
+                    <StarRating rating={myRating} onRate={setMyRating} size={36} />
+                    {myRating > 0 && (
+                      <Text style={[styles.myRatingValue, { color: colors.primary }]}>
+                        {myRating % 1 === 0 ? myRating : myRating.toFixed(1)}/5
+                      </Text>
+                    )}
+                  </View>
+                  
+                  <TextInput
+                    testID="my-rating-comment"
+                    style={[styles.myRatingInput, { color: colors.text_primary, backgroundColor: colors.bg_overlay, borderColor: colors.border }]}
+                    placeholder="Ajouter un commentaire (optionnel)..."
+                    placeholderTextColor={colors.text_secondary}
+                    value={myComment}
+                    onChangeText={setMyComment}
+                    multiline
+                    numberOfLines={3}
+                  />
+                  
+                  <TouchableOpacity
+                    testID="submit-my-rating-btn"
+                    style={[styles.submitRatingBtn, { backgroundColor: myRating > 0 ? colors.primary : colors.bg_overlay }]}
+                    onPress={handleSubmitRating}
+                    disabled={myRating === 0 || submittingRating}
+                  >
+                    {submittingRating ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <>
+                        <MaterialCommunityIcons 
+                          name="check-circle" 
+                          size={20} 
+                          color={myRating > 0 ? '#fff' : colors.text_secondary} 
+                        />
+                        <Text style={[styles.submitRatingText, { color: myRating > 0 ? '#fff' : colors.text_secondary }]}>
+                          {hasRated ? 'Mettre à jour' : 'Publier ma note'}
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              )}
 
               {/* Comment input */}
               <View style={styles.addCommentRow}>
@@ -462,7 +580,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 5, gap: 4,
   },
   ytLinkText: { fontSize: 12, fontWeight: '600' },
-  raterCard: { borderRadius: 12, padding: 14, marginBottom: 16 },
+  raterCard: { borderRadius: 12, padding: 14, marginBottom: 12 },
   raterRow: { flexDirection: 'row', alignItems: 'center' },
   raterAvatar: { width: 40, height: 40, borderRadius: 20 },
   raterLetter: { color: '#fff', fontSize: 18, fontWeight: '700' },
@@ -471,6 +589,73 @@ const styles = StyleSheet.create({
   ratingBadge: { borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4 },
   ratingBadgeText: { fontSize: 14, fontWeight: '700' },
   raterComment: { fontSize: 15, fontStyle: 'italic', lineHeight: 22, marginTop: 10 },
+  
+  // Rate video button
+  rateVideoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    marginBottom: 16,
+    gap: 8,
+  },
+  rateVideoBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  
+  // My rating card
+  myRatingCard: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  myRatingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  myRatingTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  myRatingStars: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    marginBottom: 14,
+  },
+  myRatingValue: {
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  myRatingInput: {
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 14,
+    minHeight: 70,
+    maxHeight: 100,
+    borderWidth: 1,
+    textAlignVertical: 'top',
+    marginBottom: 12,
+  },
+  submitRatingBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 100,
+    paddingVertical: 14,
+    gap: 8,
+  },
+  submitRatingText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  
   addCommentRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
   commentInput: {
     flex: 1, borderRadius: 12, padding: 12, fontSize: 14, minHeight: 44, maxHeight: 80,
