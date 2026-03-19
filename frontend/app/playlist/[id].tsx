@@ -8,6 +8,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { apiCall } from '../../src/utils/api';
+import FloatingTabBar from '../../src/components/FloatingTabBar';
 
 export default function PlaylistDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -160,6 +161,7 @@ export default function PlaylistDetailScreen() {
           </View>
         }
       />
+      <FloatingTabBar />
     </SafeAreaView>
   );
 }

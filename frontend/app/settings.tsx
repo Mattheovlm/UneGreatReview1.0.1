@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Switch } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Switch, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../src/contexts/AuthContext';
 import { useTheme } from '../src/contexts/ThemeContext';
+import FloatingTabBar from '../src/components/FloatingTabBar';
 
 export default function SettingsScreen() {
   const { colors, theme, toggleTheme } = useTheme();
@@ -25,7 +26,7 @@ export default function SettingsScreen() {
         <View style={{ width: 24 }} />
       </View>
 
-      <View style={styles.content}>
+      <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
         <View style={[styles.section, { backgroundColor: colors.bg_card }]}>
           <Text style={[styles.sectionTitle, { color: colors.text_secondary }]}>APPARENCE</Text>
           <View style={styles.settingRow}>
@@ -101,7 +102,8 @@ export default function SettingsScreen() {
         <Text style={[styles.version, { color: colors.text_secondary }]}>
           Social Cinema v1.0.0
         </Text>
-      </View>
+      </ScrollView>
+      <FloatingTabBar />
     </SafeAreaView>
   );
 }
@@ -113,7 +115,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 12,
   },
   headerTitle: { fontSize: 18, fontWeight: '700' },
-  content: { padding: 16 },
+  content: { flex: 1 },
+  scrollContent: { padding: 16, paddingBottom: 24 },
   section: { borderRadius: 12, padding: 16, marginBottom: 16 },
   sectionTitle: { fontSize: 12, fontWeight: '600', letterSpacing: 1, marginBottom: 12 },
   settingRow: {

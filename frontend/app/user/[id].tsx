@@ -9,6 +9,7 @@ import { useTheme } from '../../src/contexts/ThemeContext';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { apiCall } from '../../src/utils/api';
 import StarRating from '../../src/components/StarRating';
+import FloatingTabBar from '../../src/components/FloatingTabBar';
 
 export default function UserProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -178,6 +179,7 @@ export default function UserProfileScreen() {
           </Text>
         }
       />
+      <FloatingTabBar />
     </SafeAreaView>
   );
 }

@@ -11,6 +11,7 @@ import { useTheme } from '../../src/contexts/ThemeContext';
 import { apiCall } from '../../src/utils/api';
 import StarRating from '../../src/components/StarRating';
 import AddToPlaylistModal from '../../src/components/AddToPlaylistModal';
+import FloatingTabBar from '../../src/components/FloatingTabBar';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -525,6 +526,9 @@ export default function VideoDetailScreen() {
           channel_name: video.channel_name,
         } : null}
       />
+      
+      {/* Bottom Navigation */}
+      <FloatingTabBar />
     </View>
   );
 }
