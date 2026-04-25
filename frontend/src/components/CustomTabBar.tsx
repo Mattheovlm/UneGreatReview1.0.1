@@ -1,53 +1,48 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
 import { apiCall } from '../utils/api';
 
-// Map route names to their config
 const TAB_CONFIG: Record<string, { label: string; iconActive: string; iconInactive: string; isCenter?: boolean }> = {
-  index: { label: 'Accueil', iconActive: 'home-variant', iconInactive: 'home-variant-outline' },
-  search: { label: 'Recherche', iconActive: 'magnify', iconInactive: 'magnify' },
-  add: { label: '', iconActive: 'plus', iconInactive: 'plus', isCenter: true },
-  activity: { label: 'Activité', iconActive: 'heart', iconInactive: 'heart-outline' },
-  profile: { label: 'Profil', iconActive: 'account-circle', iconInactive: 'account-circle-outline' },
+  index:    { label: 'Accueil',   iconActive: 'home-variant',        iconInactive: 'home-variant-outline' },
+  search:   { label: 'Recherche', iconActive: 'magnify',             iconInactive: 'magnify' },
+  add:      { label: '',          iconActive: 'plus',                iconInactive: 'plus', isCenter: true },
+  activity: { label: 'Activité',  iconActive: 'heart',               iconInactive: 'heart-outline' },
+  profile:  { label: 'Profil',    iconActive: 'account-circle',      iconInactive: 'account-circle-outline' },
 };
 
-// Define the order we want tabs to appear
 const TAB_ORDER = ['index', 'search', 'add', 'activity', 'profile'];
 
 export default function CustomTabBar({ state, descriptors, navigation }: any) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [unreadCount, setUnreadCount] = useState(0);
-  
+
+  // Safe bottom: on iOS use real inset (min 20px), on Android add fixed padding
+  const bottomPadding = Platform.select({
+    ios: Math.max(insets.bottom, 20),
+    android: Math.max(insets.bottom, 16) + 8,
+    default: 8,
+  });
+
   useEffect(() => {
+    let mounted = true;
     const fetchUnread = async () => {
       try {
         const data = await apiCall('/api/notifications/unread-count');
-        setUnreadCount(data?.count || 0);
-      } catch (e) {
-        // Ignore errors
-      }
+        if (mounted) setUnreadCount(data?.count || 0);
+      } catch (e) { /* ignore */ }
     };
     fetchUnread();
-    const interval = setInterval(fetchUnread, 30000); // Check every 30s
-    return () => clearInterval(interval);
+    const interval = setInterval(fetchUnread, 30000);
+    return () => { mounted = false; clearInterval(interval); };
   }, []);
-  
-  const safeBottom = Platform.select({
-    ios: Math.max(insets.bottom, 34) + 10,
-    android: 40,
-    default: 32,
-  });
 
-  // Sort routes according to TAB_ORDER
-  const sortedRoutes = [...state.routes].sort((a: any, b: any) => {
-    const aIndex = TAB_ORDER.indexOf(a.name);
-    const bIndex = TAB_ORDER.indexOf(b.name);
-    return aIndex - bIndex;
-  });
+  const sortedRoutes = [...state.routes].sort((a: any, b: any) =>
+    TAB_ORDER.indexOf(a.name) - TAB_ORDER.indexOf(b.name)
+  );
 
   return (
     <View
@@ -56,17 +51,14 @@ export default function CustomTabBar({ state, descriptors, navigation }: any) {
         {
           backgroundColor: colors.bg_card,
           borderTopColor: colors.border,
-          paddingBottom: safeBottom,
+          paddingBottom: bottomPadding,
         },
       ]}
       testID="custom-tab-bar"
     >
       {sortedRoutes.map((route: any) => {
         const config = TAB_CONFIG[route.name];
-        if (!config) {
-          console.warn(`No config found for route: ${route.name}`);
-          return null;
-        }
+        if (!config) return null;
 
         const isFocused = state.routes[state.index]?.name === route.name;
         const showBadge = route.name === 'activity' && unreadCount > 0;
@@ -88,6 +80,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: any) {
               key={route.key}
               testID="tab-add-btn"
               onPress={onPress}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               style={({ pressed }) => [
                 styles.centerTabWrap,
                 pressed && { opacity: 0.7 },
@@ -105,6 +98,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: any) {
             key={route.key}
             testID={`tab-${route.name}-btn`}
             onPress={onPress}
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
             style={({ pressed }) => [
               styles.tabItem,
               pressed && { opacity: 0.6, backgroundColor: colors.bg_overlay },
@@ -113,7 +107,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: any) {
             <View style={styles.iconWrap}>
               <MaterialCommunityIcons
                 name={isFocused ? config.iconActive : config.iconInactive}
-                size={24}
+                size={26}
                 color={isFocused ? colors.primary : colors.text_secondary}
               />
               {showBadge && (
@@ -150,15 +144,16 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     elevation: 20,
     zIndex: 999,
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
+    paddingTop: 8,
   },
   tabItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 10,
-    paddingBottom: 6,
-    minHeight: 56,
+    paddingVertical: 8,
+    minHeight: 60,
+    borderRadius: 8,
   },
   iconWrap: {
     position: 'relative',
@@ -180,23 +175,22 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   tabLabel: {
-    fontSize: 10,
-    marginTop: 3,
+    fontSize: 11,
+    marginTop: 4,
   },
   centerTabWrap: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 4,
-    paddingBottom: 6,
-    minHeight: 56,
+    paddingVertical: 8,
+    minHeight: 60,
   },
   centerBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: -8,
+    marginBottom: 4,
   },
 });

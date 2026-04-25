@@ -38,27 +38,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const checkAuth = useCallback(async () => {
+    // Safety timeout: never block the app more than 5 seconds
+    const timeout = setTimeout(() => {
+      setLoading(false);
+    }, 5000);
+
     try {
       const savedToken = await AsyncStorage.getItem('session_token');
       if (!savedToken) {
+        clearTimeout(timeout);
         setLoading(false);
         return;
       }
-      setToken(savedToken);
       const res = await fetch(`${API_URL}/api/auth/me`, {
         headers: { 'Authorization': `Bearer ${savedToken}` },
       });
       if (res.ok) {
         const userData = await res.json();
+        setToken(savedToken);
         setUser(userData);
       } else {
         await AsyncStorage.removeItem('session_token');
         setToken(null);
+        setUser(null);
       }
     } catch (e) {
       console.error('Auth check failed:', e);
+      // Don't clear the token on network error — user might be offline
+    } finally {
+      clearTimeout(timeout);
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -89,10 +99,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const refreshUser = async () => {
-    if (!token) return;
+    const savedToken = token || await AsyncStorage.getItem('session_token');
+    if (!savedToken) return;
     try {
       const res = await fetch(`${API_URL}/api/auth/me`, {
-        headers: { 'Authorization': `Bearer ${token}` },
+        headers: { 'Authorization': `Bearer ${savedToken}` },
       });
       if (res.ok) setUser(await res.json());
     } catch (e) {
