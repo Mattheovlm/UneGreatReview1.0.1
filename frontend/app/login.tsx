@@ -33,7 +33,7 @@ export default function LoginScreen() {
       const data = await res.json();
       if (!res.ok) {
         if (data.detail === 'EMAIL_NOT_VERIFIED') {
-          throw new Error('Votre email n'est pas encore confirmé. Vérifiez votre boîte mail (et vos spams).');
+          throw new Error("Votre email n'est pas encore confirmé. Vérifiez votre boîte mail (et vos spams).");
         }
         throw new Error(data.detail || 'Échec de connexion');
       }
