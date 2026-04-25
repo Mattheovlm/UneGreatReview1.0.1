@@ -9,6 +9,10 @@ import re
 import json
 import httpx
 import bcrypt
+import smtplib
+import asyncio
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from pydantic import BaseModel
@@ -24,6 +28,15 @@ db = client[os.environ['DB_NAME']]
 
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'social-cinema-secret')
+
+# Email config (set these in your .env)
+SMTP_HOST = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
+SMTP_PORT = int(os.environ.get('SMTP_PORT', '587'))
+SMTP_USER = os.environ.get('SMTP_USER', '')
+SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD', '')
+SMTP_FROM = os.environ.get('SMTP_FROM', SMTP_USER)
+APP_URL = os.environ.get('APP_URL', 'https://rate-reels.preview.emergentagent.com')
+EMAIL_VERIFICATION_ENABLED = bool(SMTP_USER and SMTP_PASSWORD)
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -84,6 +97,41 @@ class ProfileUpdate(BaseModel):
     theme_preference: Optional[str] = None
 
 # --- Helpers ---
+async def send_verification_email(email: str, name: str, token: str):
+    """Send email verification link. Fails silently if SMTP not configured."""
+    if not EMAIL_VERIFICATION_ENABLED:
+        logger.warning("SMTP not configured — email verification skipped. Set SMTP_USER and SMTP_PASSWORD in .env")
+        return
+    verify_url = f"{APP_URL}/verify-email?token={token}"
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = "Confirmez votre adresse email — Social Cinema"
+    msg["From"] = SMTP_FROM
+    msg["To"] = email
+    html = f"""
+<html><body style="font-family:sans-serif;background:#09090B;color:#f4f4f5;padding:40px">
+<div style="max-width:480px;margin:auto;background:#18181B;border-radius:16px;padding:32px">
+  <h1 style="color:#E11D48;margin-top:0">🎬 Social Cinema</h1>
+  <p>Bonjour <strong>{name}</strong>,</p>
+  <p>Merci de vous être inscrit ! Cliquez sur le bouton ci-dessous pour confirmer votre adresse email.</p>
+  <a href="{verify_url}" style="display:inline-block;background:#E11D48;color:#fff;padding:14px 28px;border-radius:100px;text-decoration:none;font-weight:700;margin:16px 0">
+    Confirmer mon email
+  </a>
+  <p style="color:#71717A;font-size:13px">Ce lien expire dans 24h. Si vous n'avez pas créé de compte, ignorez cet email.</p>
+</div></body></html>
+"""
+    msg.attach(MIMEText(html, "html"))
+    try:
+        loop = asyncio.get_event_loop()
+        def _send():
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as s:
+                s.starttls()
+                s.login(SMTP_USER, SMTP_PASSWORD)
+                s.sendmail(SMTP_FROM, email, msg.as_string())
+        await loop.run_in_executor(None, _send)
+        logger.info(f"Verification email sent to {email}")
+    except Exception as e:
+        logger.error(f"Failed to send verification email: {e}")
+
 def extract_youtube_id(url: str) -> Optional[str]:
     patterns = [
         r'(?:v=|/v/|youtu\.be/)([a-zA-Z0-9_-]{11})',
@@ -162,44 +210,104 @@ async def enrich_ratings(ratings: list) -> list:
 async def register(data: UserRegister, response: Response):
     existing = await db.users.find_one({"email": data.email})
     if existing:
+        # If existing but unverified, resend verification email
+        if existing.get("email_verified") is False:
+            token = existing.get("email_verification_token", uuid.uuid4().hex)
+            await send_verification_email(existing["email"], existing["name"], token)
+            return {"requires_verification": True, "email": data.email,
+                    "message": "Un email de confirmation a été renvoyé."}
         raise HTTPException(400, "Email already registered")
-    
+
     password_hash = bcrypt.hashpw(data.password.encode(), bcrypt.gensalt()).decode()
     user_id = f"user_{uuid.uuid4().hex[:12]}"
-    
+    verification_token = uuid.uuid4().hex
+
     await db.users.insert_one({
         "user_id": user_id, "email": data.email, "name": data.name,
         "picture": "", "password_hash": password_hash, "bio": "",
-        "theme_preference": "dark", "created_at": datetime.now(timezone.utc)
+        "theme_preference": "dark", "created_at": datetime.now(timezone.utc),
+        "email_verified": not EMAIL_VERIFICATION_ENABLED,  # auto-verified if no SMTP
+        "email_verification_token": verification_token,
+        "email_verification_expires": datetime.now(timezone.utc) + timedelta(hours=24),
     })
-    
+
+    if EMAIL_VERIFICATION_ENABLED:
+        await send_verification_email(data.email, data.name, verification_token)
+        return {"requires_verification": True, "email": data.email,
+                "message": "Un email de confirmation vous a été envoyé. Vérifiez votre boîte mail."}
+
+    # SMTP not configured: skip verification, create session immediately
     session_token = f"session_{uuid.uuid4().hex}"
     await db.user_sessions.insert_one({
         "session_token": session_token, "user_id": user_id,
         "expires_at": datetime.now(timezone.utc) + timedelta(days=7),
         "created_at": datetime.now(timezone.utc)
     })
-    
     response.set_cookie(key="session_token", value=session_token, path="/",
                         secure=True, httponly=True, samesite="none", max_age=7*24*60*60)
     return {"user_id": user_id, "email": data.email, "name": data.name,
-            "picture": "", "session_token": session_token}
+            "picture": "", "session_token": session_token, "requires_verification": False}
 
-@api_router.post("/auth/login")
-async def login(data: UserLogin, response: Response):
-    user = await db.users.find_one({"email": data.email}, {"_id": 0})
-    if not user or not user.get("password_hash"):
-        raise HTTPException(401, "Invalid credentials")
-    if not bcrypt.checkpw(data.password.encode(), user["password_hash"].encode()):
-        raise HTTPException(401, "Invalid credentials")
-    
+@api_router.get("/auth/verify-email")
+async def verify_email(token: str, response: Response):
+    user = await db.users.find_one({"email_verification_token": token}, {"_id": 0})
+    if not user:
+        raise HTTPException(400, "Lien de vérification invalide ou déjà utilisé.")
+    expires = user.get("email_verification_expires")
+    if expires:
+        if isinstance(expires, str):
+            expires = datetime.fromisoformat(expires)
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=timezone.utc)
+        if expires < datetime.now(timezone.utc):
+            raise HTTPException(400, "Ce lien a expiré. Réinscrivez-vous pour recevoir un nouveau lien.")
+
+    await db.users.update_one(
+        {"user_id": user["user_id"]},
+        {"$set": {"email_verified": True, "email_verification_token": None}}
+    )
+
+    # Create session so the user lands directly in the app
     session_token = f"session_{uuid.uuid4().hex}"
     await db.user_sessions.insert_one({
         "session_token": session_token, "user_id": user["user_id"],
         "expires_at": datetime.now(timezone.utc) + timedelta(days=7),
         "created_at": datetime.now(timezone.utc)
     })
-    
+    response.set_cookie(key="session_token", value=session_token, path="/",
+                        secure=True, httponly=True, samesite="none", max_age=7*24*60*60)
+    return {"success": True, "session_token": session_token,
+            "user_id": user["user_id"], "email": user["email"],
+            "name": user["name"], "picture": user.get("picture", "")}
+
+@api_router.post("/auth/login")
+async def login(data: UserLogin, response: Response):
+    user = await db.users.find_one({"email": data.email}, {"_id": 0})
+    if not user or not user.get("password_hash"):
+        raise HTTPException(401, "Identifiants invalides")
+    if not bcrypt.checkpw(data.password.encode(), user["password_hash"].encode()):
+        raise HTTPException(401, "Identifiants invalides")
+
+    # Block login if email not verified (only when SMTP is configured)
+    if EMAIL_VERIFICATION_ENABLED and not user.get("email_verified", False):
+        # Resend verification email
+        token = user.get("email_verification_token") or uuid.uuid4().hex
+        await db.users.update_one(
+            {"user_id": user["user_id"]},
+            {"$set": {
+                "email_verification_token": token,
+                "email_verification_expires": datetime.now(timezone.utc) + timedelta(hours=24)
+            }}
+        )
+        await send_verification_email(user["email"], user["name"], token)
+        raise HTTPException(403, "EMAIL_NOT_VERIFIED")
+
+    session_token = f"session_{uuid.uuid4().hex}"
+    await db.user_sessions.insert_one({
+        "session_token": session_token, "user_id": user["user_id"],
+        "expires_at": datetime.now(timezone.utc) + timedelta(days=7),
+        "created_at": datetime.now(timezone.utc)
+    })
     response.set_cookie(key="session_token", value=session_token, path="/",
                         secure=True, httponly=True, samesite="none", max_age=7*24*60*60)
     return {"user_id": user["user_id"], "email": user["email"], "name": user["name"],

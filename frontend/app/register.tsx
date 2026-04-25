@@ -16,6 +16,7 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [verificationSent, setVerificationSent] = useState(false);
   const { login } = useAuth();
   const { colors } = useTheme();
   const router = useRouter();
@@ -33,13 +34,56 @@ export default function RegisterScreen() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Échec de l'inscription");
-      await login(data.session_token, data);
-      router.replace('/(tabs)');
-    } catch (e: any) {
+
+      if (data.requires_verification) {
+        setVerificationSent(true);
+      } else {
+        await login(data.session_token, {
+          user_id: data.user_id,
+          email: data.email,
+          name: data.name,
+          picture: data.picture || '',
+        });
+        router.replace('/(tabs)');
+      }
+    } catch (e) {
       setError(e.message);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
+
+  if (verificationSent) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.bg_root }]}>
+        <View style={styles.confirmContainer}>
+          <MaterialCommunityIcons name="email-check-outline" size={72} color={colors.primary} />
+          <Text style={[styles.confirmTitle, { color: colors.text_primary }]}>
+            Vérifiez vos emails !
+          </Text>
+          <Text style={[styles.confirmText, { color: colors.text_secondary }]}>
+            Un lien de confirmation a été envoyé à
+          </Text>
+          <Text style={[styles.confirmEmail, { color: colors.text_primary }]}>{email}</Text>
+          <Text style={[styles.confirmHint, { color: colors.text_secondary }]}>
+            Cliquez sur le lien dans votre boîte mail pour activer votre compte.
+            Vérifiez aussi vos spams si vous ne le voyez pas.
+          </Text>
+          <TouchableOpacity
+            style={[styles.btn, { backgroundColor: colors.primary, marginTop: 32 }]}
+            onPress={() => router.replace('/login')}
+          >
+            <Text style={styles.btnText}>Retour à la connexion</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.resendLink} onPress={handleRegister} disabled={loading}>
+            <Text style={[styles.resendText, { color: colors.text_secondary }]}>
+              {loading ? "Envoi en cours..." : "Renvoyer l'email"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg_root }]}>
@@ -83,6 +127,7 @@ export default function RegisterScreen() {
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                autoCorrect={false}
               />
             </View>
 
@@ -101,26 +146,16 @@ export default function RegisterScreen() {
 
             <TouchableOpacity
               testID="register-submit-btn"
-              style={[styles.btn, { backgroundColor: colors.primary }]}
+              style={[styles.btn, { backgroundColor: loading ? colors.primary + '80' : colors.primary }]}
               onPress={handleRegister}
               disabled={loading}
             >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.btnText}>S'inscrire</Text>
-              )}
+              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>S'inscrire</Text>}
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity
-            testID="go-to-login-btn"
-            style={styles.switchLink}
-            onPress={() => router.back()}
-          >
-            <Text style={[styles.switchText, { color: colors.text_secondary }]}>
-              Déjà un compte ?{' '}
-            </Text>
+          <TouchableOpacity testID="go-to-login-btn" style={styles.switchLink} onPress={() => router.back()}>
+            <Text style={[styles.switchText, { color: colors.text_secondary }]}>Déjà un compte ?{' '}</Text>
             <Text style={[styles.switchTextBold, { color: colors.primary }]}>Se connecter</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -149,4 +184,11 @@ const styles = StyleSheet.create({
   switchLink: { flexDirection: 'row', justifyContent: 'center', marginTop: 24 },
   switchText: { fontSize: 15 },
   switchTextBold: { fontSize: 15, fontWeight: '700' },
+  confirmContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  confirmTitle: { fontSize: 26, fontWeight: '800', marginTop: 24, textAlign: 'center' },
+  confirmText: { fontSize: 16, marginTop: 16, textAlign: 'center' },
+  confirmEmail: { fontSize: 16, fontWeight: '700', marginTop: 4 },
+  confirmHint: { fontSize: 13, marginTop: 16, textAlign: 'center', lineHeight: 20 },
+  resendLink: { marginTop: 16, padding: 12 },
+  resendText: { fontSize: 14, textDecorationLine: 'underline' },
 });

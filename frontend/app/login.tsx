@@ -31,17 +31,30 @@ export default function LoginScreen() {
         body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Échec de connexion');
-      await login(data.session_token, data);
+      if (!res.ok) {
+        if (data.detail === 'EMAIL_NOT_VERIFIED') {
+          throw new Error('Votre email n'est pas encore confirmé. Vérifiez votre boîte mail (et vos spams).');
+        }
+        throw new Error(data.detail || 'Échec de connexion');
+      }
+      // Save token and user — then navigate immediately without waiting for state propagation
+      await login(data.session_token, {
+        user_id: data.user_id,
+        email: data.email,
+        name: data.name,
+        picture: data.picture || '',
+        bio: data.bio,
+        theme_preference: data.theme_preference,
+      });
       router.replace('/(tabs)');
     } catch (e: any) {
       setError(e.message);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleGoogleLogin = () => {
-    // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       const redirectUrl = window.location.origin + '/auth-callback';
       window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
@@ -81,6 +94,7 @@ export default function LoginScreen() {
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                autoCorrect={false}
               />
             </View>
 
@@ -106,7 +120,7 @@ export default function LoginScreen() {
 
             <TouchableOpacity
               testID="login-submit-btn"
-              style={[styles.btn, { backgroundColor: colors.primary }]}
+              style={[styles.btn, { backgroundColor: loading ? colors.primary + '80' : colors.primary }]}
               onPress={handleLogin}
               disabled={loading}
             >
@@ -154,9 +168,7 @@ export default function LoginScreen() {
             </TouchableOpacity>
             <Text style={[styles.legalSeparator, { color: colors.text_secondary }]}> • </Text>
             <TouchableOpacity onPress={() => router.push('/terms')}>
-              <Text style={[styles.legalText, { color: colors.text_secondary }]}>
-                CGU
-              </Text>
+              <Text style={[styles.legalText, { color: colors.text_secondary }]}>CGU</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -180,9 +192,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 14, borderWidth: 1, gap: 12,
   },
   input: { flex: 1, fontSize: 16 },
-  btn: {
-    borderRadius: 100, paddingVertical: 16, alignItems: 'center', marginTop: 8,
-  },
+  btn: { borderRadius: 100, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
   btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 8 },
   divLine: { flex: 1, height: 1 },
@@ -192,9 +202,7 @@ const styles = StyleSheet.create({
     borderRadius: 100, paddingVertical: 14, gap: 10, borderWidth: 1,
   },
   googleBtnText: { fontSize: 16, fontWeight: '600' },
-  switchLink: {
-    flexDirection: 'row', justifyContent: 'center', marginTop: 24,
-  },
+  switchLink: { flexDirection: 'row', justifyContent: 'center', marginTop: 24 },
   switchText: { fontSize: 15 },
   switchTextBold: { fontSize: 15, fontWeight: '700' },
   legalLinks: {
