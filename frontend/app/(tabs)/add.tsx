@@ -204,7 +204,7 @@ export default function AddVideoScreen() {
     }
     setSubmitting(true);
     try {
-      await apiCall('/api/videos', {
+      await apiCall('/api/videos/rate', {
         method: 'POST',
         body: JSON.stringify({
           youtube_url: `https://www.youtube.com/watch?v=${videoToSubmit.youtube_id}`,
