@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, Image, StyleSheet,
   SafeAreaView, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert,
-  Animated, FlatList,
+  Animated, FlatList, Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -26,6 +26,9 @@ export default function AddVideoScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [fetchingInfo, setFetchingInfo] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  
+  // Success modal state
+  const [showSuccess, setShowSuccess] = useState(false);
   
   // Search Tab state
   const [searchQuery, setSearchQuery] = useState('');
@@ -212,13 +215,27 @@ export default function AddVideoScreen() {
           comment,
         }),
       });
-      Alert.alert('Succès', 'Vidéo notée avec succès !', [
-        { text: 'OK', onPress: () => router.push('/(tabs)') },
-      ]);
+      
+      // Reset form
+      setUrl('');
+      setRating(0);
+      setComment('');
+      setPreview(null);
+      setSelectedVideo(null);
+      setSubmitting(false);
+      
+      // Show success modal
+      setShowSuccess(true);
+      
     } catch (e: any) {
       Alert.alert('Erreur', e.message || 'Impossible de noter la vidéo');
+      setSubmitting(false);
     }
-    setSubmitting(false);
+  };
+
+  const handleSuccessClose = () => {
+    setShowSuccess(false);
+    router.replace('/(tabs)');
   };
 
   const selectVideoFromSearch = (video: any) => {
@@ -562,6 +579,34 @@ export default function AddVideoScreen() {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+      
+      {/* Success Modal */}
+      <Modal
+        visible={showSuccess}
+        transparent
+        animationType="fade"
+        onRequestClose={handleSuccessClose}
+      >
+        <View style={styles.successModalOverlay}>
+          <View style={[styles.successModalContent, { backgroundColor: colors.bg_card }]}>
+            <View style={[styles.successIconCircle, { backgroundColor: '#22c55e20' }]}>
+              <MaterialCommunityIcons name="check-circle" size={64} color="#22c55e" />
+            </View>
+            <Text style={[styles.successTitle, { color: colors.text_primary }]}>
+              Avis publié !
+            </Text>
+            <Text style={[styles.successText, { color: colors.text_secondary }]}>
+              Votre note a été partagée avec vos amis.
+            </Text>
+            <TouchableOpacity
+              style={[styles.successBtn, { backgroundColor: colors.primary }]}
+              onPress={handleSuccessClose}
+            >
+              <Text style={styles.successBtnText}>Retour à l'accueil</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -823,5 +868,50 @@ const styles = StyleSheet.create({
   loadingContainer: {
     paddingVertical: 60,
     alignItems: 'center',
+  },
+  
+  // Success Modal
+  successModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  successModalContent: {
+    borderRadius: 20,
+    padding: 32,
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 320,
+  },
+  successIconCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  successTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    marginTop: 8,
+  },
+  successText: {
+    fontSize: 15,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  successBtn: {
+    borderRadius: 100,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    marginTop: 24,
+  },
+  successBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });
