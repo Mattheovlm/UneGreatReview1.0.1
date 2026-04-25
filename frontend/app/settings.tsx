@@ -1,19 +1,59 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Switch, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Switch, ScrollView, Alert, Linking, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../src/contexts/AuthContext';
 import { useTheme } from '../src/contexts/ThemeContext';
+import { apiCall } from '../src/utils/api';
 import FloatingTabBar from '../src/components/FloatingTabBar';
+
+const SUPPORT_EMAIL = 'support@socialcinema.app';
 
 export default function SettingsScreen() {
   const { colors, theme, toggleTheme } = useTheme();
-  const { user, logout } = useAuth();
+  const { user, logout, token } = useAuth();
   const router = useRouter();
+  const [deleting, setDeleting] = useState(false);
 
   const handleLogout = async () => {
     await logout();
     router.replace('/login');
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Supprimer mon compte',
+      'Êtes-vous vraiment sûr de vouloir supprimer votre compte ?\n\nCette action est irréversible. Toutes vos données, vidéos notées, commentaires et amis seront définitivement supprimés.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer définitivement',
+          style: 'destructive',
+          onPress: confirmDeleteAccount,
+        },
+      ]
+    );
+  };
+
+  const confirmDeleteAccount = async () => {
+    setDeleting(true);
+    try {
+      await apiCall('/api/auth/delete-account', {
+        method: 'DELETE',
+      });
+      await logout();
+      Alert.alert('Compte supprimé', 'Votre compte a été supprimé avec succès.');
+      router.replace('/login');
+    } catch (e: any) {
+      Alert.alert('Erreur', e.message || 'Impossible de supprimer le compte');
+    }
+    setDeleting(false);
+  };
+
+  const handleContactSupport = () => {
+    const subject = encodeURIComponent('Support Social Cinema');
+    const body = encodeURIComponent(`\n\n---\nUser ID: ${user?.user_id}\nPlatform: ${Platform.OS}`);
+    Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`);
   };
 
   return (
@@ -65,6 +105,21 @@ export default function SettingsScreen() {
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.bg_card }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text_secondary }]}>SUPPORT</Text>
+          <TouchableOpacity
+            testID="contact-support-btn"
+            style={styles.settingRow}
+            onPress={handleContactSupport}
+          >
+            <View style={styles.settingInfo}>
+              <MaterialCommunityIcons name="email-fast-outline" size={22} color={colors.text_secondary} />
+              <Text style={[styles.settingText, { color: colors.text_primary }]}>Contacter le support</Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={22} color={colors.text_secondary} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={[styles.section, { backgroundColor: colors.bg_card }]}>
           <Text style={[styles.sectionTitle, { color: colors.text_secondary }]}>LÉGAL</Text>
           <TouchableOpacity
             testID="privacy-policy-btn"
@@ -99,6 +154,18 @@ export default function SettingsScreen() {
           <Text style={[styles.logoutText, { color: colors.error }]}>Se déconnecter</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity
+          testID="delete-account-btn"
+          style={[styles.deleteBtn, { borderColor: colors.error }]}
+          onPress={handleDeleteAccount}
+          disabled={deleting}
+        >
+          <MaterialCommunityIcons name="account-remove" size={22} color={colors.error} />
+          <Text style={[styles.deleteText, { color: colors.error }]}>
+            {deleting ? 'Suppression...' : 'Supprimer mon compte'}
+          </Text>
+        </TouchableOpacity>
+
         <Text style={[styles.version, { color: colors.text_secondary }]}>
           Social Cinema v1.0.0
         </Text>
@@ -130,5 +197,11 @@ const styles = StyleSheet.create({
     borderRadius: 12, paddingVertical: 16, gap: 8, marginTop: 8,
   },
   logoutText: { fontSize: 16, fontWeight: '600' },
+  deleteBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    borderRadius: 12, paddingVertical: 16, gap: 8, marginTop: 12,
+    borderWidth: 1, backgroundColor: 'transparent',
+  },
+  deleteText: { fontSize: 16, fontWeight: '600' },
   version: { textAlign: 'center', marginTop: 24, fontSize: 13 },
 });

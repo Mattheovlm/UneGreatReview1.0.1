@@ -365,6 +365,31 @@ async def logout(request: Request, response: Response):
     response.delete_cookie(key="session_token", path="/")
     return {"message": "Logged out"}
 
+@api_router.delete("/auth/delete-account")
+async def delete_account(request: Request, response: Response):
+    """Permanently delete user account and all associated data"""
+    user = await get_current_user(request)
+    user_id = user["user_id"]
+    
+    # Delete all user data
+    await db.video_ratings.delete_many({"user_id": user_id})
+    await db.comments.delete_many({"user_id": user_id})
+    await db.rating_likes.delete_many({"user_id": user_id})
+    await db.friendships.delete_many({"$or": [{"user_id": user_id}, {"friend_id": user_id}]})
+    await db.friend_requests.delete_many({"$or": [{"from_user_id": user_id}, {"to_user_id": user_id}]})
+    await db.playlists.delete_many({"user_id": user_id})
+    await db.notifications.delete_many({"user_id": user_id})
+    await db.user_sessions.delete_many({"user_id": user_id})
+    
+    # Delete user account
+    await db.users.delete_one({"user_id": user_id})
+    
+    # Clear cookie
+    response.delete_cookie(key="session_token", path="/")
+    
+    logger.info(f"Account deleted: {user_id}")
+    return {"message": "Account deleted successfully"}
+
 # --- Users ---
 @api_router.get("/users/search")
 async def search_users(q: str, request: Request):
