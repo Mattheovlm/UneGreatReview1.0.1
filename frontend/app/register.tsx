@@ -17,6 +17,7 @@ export default function RegisterScreen() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
+  const [verificationToken, setVerificationToken] = useState('');
   const { login } = useAuth();
   const { colors } = useTheme();
   const router = useRouter();
@@ -37,6 +38,9 @@ export default function RegisterScreen() {
 
       if (data.requires_verification) {
         setVerificationSent(true);
+        if (data.verification_token) {
+          setVerificationToken(data.verification_token);
+        }
       } else {
         await login(data.session_token, {
           user_id: data.user_id,
@@ -46,10 +50,16 @@ export default function RegisterScreen() {
         });
         router.replace('/(tabs)');
       }
-    } catch (e) {
+    } catch (e: any) {
       setError(e.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleVerifyNow = () => {
+    if (verificationToken) {
+      router.push(`/verify-email?token=${verificationToken}`);
     }
   };
 
@@ -69,8 +79,19 @@ export default function RegisterScreen() {
             Cliquez sur le lien dans votre boîte mail pour activer votre compte.
             Vérifiez aussi vos spams si vous ne le voyez pas.
           </Text>
+          
+          {/* Manual verification button (for testing without SMTP) */}
+          {verificationToken && (
+            <TouchableOpacity
+              style={[styles.btn, { backgroundColor: colors.success || '#22C55E', marginTop: 24 }]}
+              onPress={handleVerifyNow}
+            >
+              <Text style={styles.btnText}>Vérifier maintenant</Text>
+            </TouchableOpacity>
+          )}
+          
           <TouchableOpacity
-            style={[styles.btn, { backgroundColor: colors.primary, marginTop: 32 }]}
+            style={[styles.btn, { backgroundColor: colors.primary, marginTop: verificationToken ? 12 : 32 }]}
             onPress={() => router.replace('/login')}
           >
             <Text style={styles.btnText}>Retour à la connexion</Text>

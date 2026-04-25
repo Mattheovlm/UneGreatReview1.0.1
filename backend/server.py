@@ -210,12 +210,17 @@ async def enrich_ratings(ratings: list) -> list:
 async def register(data: UserRegister, response: Response):
     existing = await db.users.find_one({"email": data.email})
     if existing:
-        # If existing but unverified, resend verification email
+        # If existing but unverified, return the verification token again
         if existing.get("email_verified") is False:
             token = existing.get("email_verification_token", uuid.uuid4().hex)
+            # Try to send email if SMTP configured
             await send_verification_email(existing["email"], existing["name"], token)
-            return {"requires_verification": True, "email": data.email,
-                    "message": "Un email de confirmation a été renvoyé."}
+            return {
+                "requires_verification": True, 
+                "email": data.email,
+                "verification_token": token,  # Return token for manual verification
+                "message": "Un compte existe déjà avec cet email mais n'est pas vérifié."
+            }
         raise HTTPException(400, "Email already registered")
 
     password_hash = bcrypt.hashpw(data.password.encode(), bcrypt.gensalt()).decode()
@@ -226,27 +231,21 @@ async def register(data: UserRegister, response: Response):
         "user_id": user_id, "email": data.email, "name": data.name,
         "picture": "", "password_hash": password_hash, "bio": "",
         "theme_preference": "dark", "created_at": datetime.now(timezone.utc),
-        "email_verified": not EMAIL_VERIFICATION_ENABLED,  # auto-verified if no SMTP
+        "email_verified": False,  # ALWAYS require verification
         "email_verification_token": verification_token,
         "email_verification_expires": datetime.now(timezone.utc) + timedelta(hours=24),
     })
 
-    if EMAIL_VERIFICATION_ENABLED:
-        await send_verification_email(data.email, data.name, verification_token)
-        return {"requires_verification": True, "email": data.email,
-                "message": "Un email de confirmation vous a été envoyé. Vérifiez votre boîte mail."}
-
-    # SMTP not configured: skip verification, create session immediately
-    session_token = f"session_{uuid.uuid4().hex}"
-    await db.user_sessions.insert_one({
-        "session_token": session_token, "user_id": user_id,
-        "expires_at": datetime.now(timezone.utc) + timedelta(days=7),
-        "created_at": datetime.now(timezone.utc)
-    })
-    response.set_cookie(key="session_token", value=session_token, path="/",
-                        secure=True, httponly=True, samesite="none", max_age=7*24*60*60)
-    return {"user_id": user_id, "email": data.email, "name": data.name,
-            "picture": "", "session_token": session_token, "requires_verification": False}
+    # Try to send email if SMTP configured
+    await send_verification_email(data.email, data.name, verification_token)
+    
+    # Always require verification - return token for manual verification
+    return {
+        "requires_verification": True, 
+        "email": data.email,
+        "verification_token": verification_token,  # Return token so user can verify manually
+        "message": "Compte créé ! Vérifiez votre email pour activer votre compte."
+    }
 
 @api_router.get("/auth/verify-email")
 async def verify_email(token: str, response: Response):
@@ -288,9 +287,9 @@ async def login(data: UserLogin, response: Response):
     if not bcrypt.checkpw(data.password.encode(), user["password_hash"].encode()):
         raise HTTPException(401, "Identifiants invalides")
 
-    # Block login if email not verified (only when SMTP is configured)
-    if EMAIL_VERIFICATION_ENABLED and not user.get("email_verified", False):
-        # Resend verification email
+    # ALWAYS block login if email not verified
+    if not user.get("email_verified", False):
+        # Get or create verification token
         token = user.get("email_verification_token") or uuid.uuid4().hex
         await db.users.update_one(
             {"user_id": user["user_id"]},
@@ -299,8 +298,10 @@ async def login(data: UserLogin, response: Response):
                 "email_verification_expires": datetime.now(timezone.utc) + timedelta(hours=24)
             }}
         )
+        # Try to send email if SMTP configured
         await send_verification_email(user["email"], user["name"], token)
-        raise HTTPException(403, "EMAIL_NOT_VERIFIED")
+        # Return token for manual verification
+        raise HTTPException(403, f"EMAIL_NOT_VERIFIED:{token}")
 
     session_token = f"session_{uuid.uuid4().hex}"
     await db.user_sessions.insert_one({
