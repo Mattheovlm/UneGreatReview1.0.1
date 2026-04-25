@@ -38,6 +38,9 @@ SMTP_FROM = os.environ.get('SMTP_FROM', SMTP_USER)
 APP_URL = os.environ.get('APP_URL', 'https://rate-reels.preview.emergentagent.com')
 EMAIL_VERIFICATION_ENABLED = bool(SMTP_USER and SMTP_PASSWORD)
 
+# YouTube API
+YOUTUBE_API_KEY = os.environ.get('YOUTUBE_API_KEY', '')
+
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
@@ -598,6 +601,155 @@ async def fetch_video_info(url: str, request: Request):
         }
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+# --- YouTube Search API ---
+@api_router.get("/youtube/search")
+async def youtube_search(q: str, request: Request, max_results: int = 10):
+    """Search YouTube videos using the YouTube Data API"""
+    await get_current_user(request)
+    
+    if not YOUTUBE_API_KEY:
+        raise HTTPException(500, "YouTube API key not configured")
+    
+    if not q or len(q) < 2:
+        return []
+    
+    try:
+        async with httpx.AsyncClient() as http:
+            resp = await http.get(
+                "https://www.googleapis.com/youtube/v3/search",
+                params={
+                    "part": "snippet",
+                    "q": q,
+                    "type": "video",
+                    "maxResults": min(max_results, 25),
+                    "key": YOUTUBE_API_KEY
+                },
+                timeout=10
+            )
+            
+            if resp.status_code != 200:
+                logger.error(f"YouTube API error: {resp.status_code} - {resp.text}")
+                raise HTTPException(resp.status_code, "YouTube API error")
+            
+            data = resp.json()
+            videos = []
+            
+            for item in data.get("items", []):
+                video_id = item["id"]["videoId"]
+                snippet = item["snippet"]
+                videos.append({
+                    "youtube_id": video_id,
+                    "title": snippet["title"],
+                    "thumbnail": snippet["thumbnails"].get("high", snippet["thumbnails"].get("medium", snippet["thumbnails"]["default"]))["url"],
+                    "channel_name": snippet["channelTitle"],
+                    "description": snippet.get("description", "")[:200],
+                    "published_at": snippet.get("publishedAt", "")
+                })
+            
+            return videos
+    except httpx.TimeoutException:
+        raise HTTPException(504, "YouTube API timeout")
+    except Exception as e:
+        logger.error(f"YouTube search error: {e}")
+        raise HTTPException(500, str(e))
+
+@api_router.get("/youtube/video/{video_id}")
+async def youtube_video_details(video_id: str, request: Request):
+    """Get detailed info about a YouTube video"""
+    await get_current_user(request)
+    
+    if not YOUTUBE_API_KEY:
+        raise HTTPException(500, "YouTube API key not configured")
+    
+    try:
+        async with httpx.AsyncClient() as http:
+            resp = await http.get(
+                "https://www.googleapis.com/youtube/v3/videos",
+                params={
+                    "part": "snippet,statistics,contentDetails",
+                    "id": video_id,
+                    "key": YOUTUBE_API_KEY
+                },
+                timeout=10
+            )
+            
+            if resp.status_code != 200:
+                raise HTTPException(resp.status_code, "YouTube API error")
+            
+            data = resp.json()
+            items = data.get("items", [])
+            
+            if not items:
+                raise HTTPException(404, "Video not found")
+            
+            item = items[0]
+            snippet = item["snippet"]
+            stats = item.get("statistics", {})
+            
+            return {
+                "youtube_id": video_id,
+                "title": snippet["title"],
+                "description": snippet.get("description", ""),
+                "thumbnail": snippet["thumbnails"].get("high", snippet["thumbnails"].get("medium", snippet["thumbnails"]["default"]))["url"],
+                "channel_name": snippet["channelTitle"],
+                "channel_id": snippet["channelId"],
+                "published_at": snippet.get("publishedAt", ""),
+                "view_count": int(stats.get("viewCount", 0)),
+                "like_count": int(stats.get("likeCount", 0)),
+                "comment_count": int(stats.get("commentCount", 0)),
+                "duration": item.get("contentDetails", {}).get("duration", "")
+            }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"YouTube video details error: {e}")
+        raise HTTPException(500, str(e))
+
+@api_router.get("/youtube/trending")
+async def youtube_trending(request: Request, region_code: str = "FR", max_results: int = 10):
+    """Get trending videos on YouTube"""
+    await get_current_user(request)
+    
+    if not YOUTUBE_API_KEY:
+        raise HTTPException(500, "YouTube API key not configured")
+    
+    try:
+        async with httpx.AsyncClient() as http:
+            resp = await http.get(
+                "https://www.googleapis.com/youtube/v3/videos",
+                params={
+                    "part": "snippet,statistics",
+                    "chart": "mostPopular",
+                    "regionCode": region_code,
+                    "maxResults": min(max_results, 25),
+                    "key": YOUTUBE_API_KEY
+                },
+                timeout=10
+            )
+            
+            if resp.status_code != 200:
+                raise HTTPException(resp.status_code, "YouTube API error")
+            
+            data = resp.json()
+            videos = []
+            
+            for item in data.get("items", []):
+                snippet = item["snippet"]
+                stats = item.get("statistics", {})
+                videos.append({
+                    "youtube_id": item["id"],
+                    "title": snippet["title"],
+                    "thumbnail": snippet["thumbnails"].get("high", snippet["thumbnails"].get("medium", snippet["thumbnails"]["default"]))["url"],
+                    "channel_name": snippet["channelTitle"],
+                    "view_count": int(stats.get("viewCount", 0)),
+                    "like_count": int(stats.get("likeCount", 0))
+                })
+            
+            return videos
+    except Exception as e:
+        logger.error(f"YouTube trending error: {e}")
+        raise HTTPException(500, str(e))
 
 @api_router.get("/videos/my-rating/{youtube_id}")
 async def get_my_rating_for_video(youtube_id: str, request: Request):
