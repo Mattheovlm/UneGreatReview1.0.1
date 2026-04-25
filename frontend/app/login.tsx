@@ -16,7 +16,6 @@ export default function LoginScreen() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [verificationToken, setVerificationToken] = useState('');
   const { login } = useAuth();
   const { colors } = useTheme();
   const router = useRouter();
@@ -25,7 +24,6 @@ export default function LoginScreen() {
     if (!email || !password) { setError('Remplissez tous les champs'); return; }
     setLoading(true);
     setError('');
-    setVerificationToken('');
     try {
       const res = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
@@ -34,14 +32,9 @@ export default function LoginScreen() {
       });
       const data = await res.json();
       if (!res.ok) {
-        // Check if email not verified - extract token from response
-        if (data.detail && data.detail.startsWith('EMAIL_NOT_VERIFIED:')) {
-          const token = data.detail.split(':')[1];
-          setVerificationToken(token);
-          throw new Error("Votre email n'est pas encore confirmé.");
-        }
-        if (data.detail === 'EMAIL_NOT_VERIFIED') {
-          throw new Error("Votre email n'est pas encore confirmé. Vérifiez votre boîte mail (et vos spams).");
+        // Check if email not verified
+        if (data.detail && data.detail.startsWith('EMAIL_NOT_VERIFIED')) {
+          throw new Error("Votre email n'est pas encore confirmé.\n\nVérifiez votre boîte mail (et vos spams) pour cliquer sur le lien de confirmation.");
         }
         throw new Error(data.detail || 'Échec de connexion');
       }
@@ -59,12 +52,6 @@ export default function LoginScreen() {
       setError(e.message);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleVerifyNow = () => {
-    if (verificationToken) {
-      router.push(`/verify-email?token=${verificationToken}`);
     }
   };
 
@@ -93,15 +80,6 @@ export default function LoginScreen() {
           {error ? (
             <View style={[styles.errorBox, { backgroundColor: colors.error + '20' }]}>
               <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
-              {verificationToken && (
-                <TouchableOpacity
-                  style={[styles.verifyBtn, { backgroundColor: colors.success || '#22C55E' }]}
-                  onPress={handleVerifyNow}
-                >
-                  <MaterialCommunityIcons name="email-check" size={18} color="#fff" />
-                  <Text style={styles.verifyBtnText}>Vérifier maintenant</Text>
-                </TouchableOpacity>
-              )}
             </View>
           ) : null}
 
@@ -209,11 +187,6 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 16, marginTop: 8 },
   errorBox: { borderRadius: 10, padding: 12, marginBottom: 16 },
   errorText: { fontSize: 14, textAlign: 'center' },
-  verifyBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    borderRadius: 100, paddingVertical: 12, marginTop: 12, gap: 8,
-  },
-  verifyBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   form: { gap: 14 },
   inputWrap: {
     flexDirection: 'row', alignItems: 'center', borderRadius: 12,

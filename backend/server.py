@@ -210,16 +210,14 @@ async def enrich_ratings(ratings: list) -> list:
 async def register(data: UserRegister, response: Response):
     existing = await db.users.find_one({"email": data.email})
     if existing:
-        # If existing but unverified, return the verification token again
+        # If existing but unverified, resend verification email
         if existing.get("email_verified") is False:
             token = existing.get("email_verification_token", uuid.uuid4().hex)
-            # Try to send email if SMTP configured
             await send_verification_email(existing["email"], existing["name"], token)
             return {
                 "requires_verification": True, 
                 "email": data.email,
-                "verification_token": token,  # Return token for manual verification
-                "message": "Un compte existe déjà avec cet email mais n'est pas vérifié."
+                "message": "Un email de confirmation a été renvoyé."
             }
         raise HTTPException(400, "Email already registered")
 
@@ -231,20 +229,18 @@ async def register(data: UserRegister, response: Response):
         "user_id": user_id, "email": data.email, "name": data.name,
         "picture": "", "password_hash": password_hash, "bio": "",
         "theme_preference": "dark", "created_at": datetime.now(timezone.utc),
-        "email_verified": False,  # ALWAYS require verification
+        "email_verified": False,
         "email_verification_token": verification_token,
         "email_verification_expires": datetime.now(timezone.utc) + timedelta(hours=24),
     })
 
-    # Try to send email if SMTP configured
+    # Send verification email
     await send_verification_email(data.email, data.name, verification_token)
     
-    # Always require verification - return token for manual verification
     return {
         "requires_verification": True, 
         "email": data.email,
-        "verification_token": verification_token,  # Return token so user can verify manually
-        "message": "Compte créé ! Vérifiez votre email pour activer votre compte."
+        "message": "Un email de confirmation vous a été envoyé. Vérifiez votre boîte mail."
     }
 
 @api_router.get("/auth/verify-email")
@@ -287,9 +283,9 @@ async def login(data: UserLogin, response: Response):
     if not bcrypt.checkpw(data.password.encode(), user["password_hash"].encode()):
         raise HTTPException(401, "Identifiants invalides")
 
-    # ALWAYS block login if email not verified
+    # Block login if email not verified
     if not user.get("email_verified", False):
-        # Get or create verification token
+        # Resend verification email
         token = user.get("email_verification_token") or uuid.uuid4().hex
         await db.users.update_one(
             {"user_id": user["user_id"]},
@@ -298,10 +294,8 @@ async def login(data: UserLogin, response: Response):
                 "email_verification_expires": datetime.now(timezone.utc) + timedelta(hours=24)
             }}
         )
-        # Try to send email if SMTP configured
         await send_verification_email(user["email"], user["name"], token)
-        # Return token for manual verification
-        raise HTTPException(403, f"EMAIL_NOT_VERIFIED:{token}")
+        raise HTTPException(403, "EMAIL_NOT_VERIFIED")
 
     session_token = f"session_{uuid.uuid4().hex}"
     await db.user_sessions.insert_one({

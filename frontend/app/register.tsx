@@ -17,7 +17,6 @@ export default function RegisterScreen() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
-  const [verificationToken, setVerificationToken] = useState('');
   const { login } = useAuth();
   const { colors } = useTheme();
   const router = useRouter();
@@ -38,9 +37,6 @@ export default function RegisterScreen() {
 
       if (data.requires_verification) {
         setVerificationSent(true);
-        if (data.verification_token) {
-          setVerificationToken(data.verification_token);
-        }
       } else {
         await login(data.session_token, {
           user_id: data.user_id,
@@ -54,12 +50,6 @@ export default function RegisterScreen() {
       setError(e.message);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleVerifyNow = () => {
-    if (verificationToken) {
-      router.push(`/verify-email?token=${verificationToken}`);
     }
   };
 
@@ -77,24 +67,14 @@ export default function RegisterScreen() {
           <Text style={[styles.confirmEmail, { color: colors.text_primary }]}>{email}</Text>
           <Text style={[styles.confirmHint, { color: colors.text_secondary }]}>
             Cliquez sur le lien dans votre boîte mail pour activer votre compte.
-            Vérifiez aussi vos spams si vous ne le voyez pas.
+            {'\n\n'}Pensez à vérifier vos spams si vous ne le voyez pas.
           </Text>
           
-          {/* Manual verification button (for testing without SMTP) */}
-          {verificationToken && (
-            <TouchableOpacity
-              style={[styles.btn, { backgroundColor: colors.success || '#22C55E', marginTop: 24 }]}
-              onPress={handleVerifyNow}
-            >
-              <Text style={styles.btnText}>Vérifier maintenant</Text>
-            </TouchableOpacity>
-          )}
-          
           <TouchableOpacity
-            style={[styles.btn, { backgroundColor: colors.primary, marginTop: verificationToken ? 12 : 32 }]}
+            style={[styles.btn, { backgroundColor: colors.primary, marginTop: 32 }]}
             onPress={() => router.replace('/login')}
           >
-            <Text style={styles.btnText}>Retour à la connexion</Text>
+            <Text style={styles.btnText}>J'ai vérifié, me connecter</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.resendLink} onPress={handleRegister} disabled={loading}>
             <Text style={[styles.resendText, { color: colors.text_secondary }]}>
