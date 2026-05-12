@@ -47,6 +47,37 @@ api_router = APIRouter(prefix="/api")
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# Load bad words list for content moderation
+BAD_WORDS = set()
+bad_words_file = ROOT_DIR / 'data' / 'bad_words.txt'
+if bad_words_file.exists():
+    with open(bad_words_file, 'r', encoding='utf-8') as f:
+        for line in f:
+            word = line.strip().lower()
+            if word:
+                BAD_WORDS.add(word)
+    logger.info(f"Loaded {len(BAD_WORDS)} bad words for content moderation")
+
+def contains_profanity(text: str) -> bool:
+    """Check if text contains any profanity/bad words"""
+    if not text or not BAD_WORDS:
+        return False
+    # Normalize text: lowercase
+    text_lower = text.lower()
+    # Check each word in the text
+    words = re.findall(r'\b\w+\b', text_lower)
+    for word in words:
+        if word in BAD_WORDS:
+            return True
+    # Also check for bad words embedded in text (no spaces)
+    for bad_word in BAD_WORDS:
+        if len(bad_word) >= 4 and bad_word in text_lower:
+            return True
+    return False
+
+def get_profanity_error_message() -> str:
+    return "Le contenu contient des termes inappropriés. Veuillez modifier votre texte."
+
 # --- Pydantic Models ---
 class UserRegister(BaseModel):
     email: str
@@ -211,6 +242,10 @@ async def enrich_ratings(ratings: list) -> list:
 # --- Auth ---
 @api_router.post("/auth/register")
 async def register(data: UserRegister, response: Response):
+    # Check for profanity in name
+    if contains_profanity(data.name):
+        raise HTTPException(400, "Le pseudo contient des termes inappropriés. Veuillez en choisir un autre.")
+    
     existing = await db.users.find_one({"email": data.email})
     if existing:
         # If existing but unverified, resend verification email
@@ -421,6 +456,13 @@ async def get_user(user_id: str, request: Request):
 @api_router.put("/users/me")
 async def update_profile(data: ProfileUpdate, request: Request):
     user = await get_current_user(request)
+    
+    # Check for profanity in name and bio
+    if data.name is not None and contains_profanity(data.name):
+        raise HTTPException(400, "Le pseudo contient des termes inappropriés. Veuillez en choisir un autre.")
+    if data.bio is not None and contains_profanity(data.bio):
+        raise HTTPException(400, "La bio contient des termes inappropriés. Veuillez la modifier.")
+    
     update = {}
     if data.name is not None: update["name"] = data.name
     if data.bio is not None: update["bio"] = data.bio
@@ -785,6 +827,10 @@ async def rate_video_by_youtube_id(request: Request):
     if rating_value < 0.5 or rating_value > 5 or (rating_value * 2) % 1 != 0:
         raise HTTPException(400, "Rating must be between 0.5 and 5 in 0.5 increments")
     
+    # Check for profanity in comment
+    if comment and contains_profanity(comment):
+        raise HTTPException(400, "Votre commentaire contient des termes inappropriés. Veuillez le modifier.")
+    
     # Check if user already rated this video
     existing = await db.video_ratings.find_one({
         "user_id": user["user_id"], "youtube_id": youtube_id
@@ -1024,6 +1070,10 @@ async def rate_video(data: VideoRateRequest, request: Request):
     # Validate rating: must be between 0.5 and 5, in 0.5 increments
     if data.rating < 0.5 or data.rating > 5 or (data.rating * 2) % 1 != 0:
         raise HTTPException(400, "Rating must be between 0.5 and 5 in 0.5 increments (0.5, 1, 1.5, ..., 5)")
+    
+    # Check for profanity in comment
+    if data.comment and contains_profanity(data.comment):
+        raise HTTPException(400, "Votre commentaire contient des termes inappropriés. Veuillez le modifier.")
     
     youtube_info = await get_youtube_info(data.youtube_url)
     
@@ -1280,6 +1330,11 @@ async def get_video_detail(rating_id: str, request: Request):
 @api_router.post("/videos/{rating_id}/comments")
 async def add_comment(rating_id: str, data: CommentCreate, request: Request):
     user = await get_current_user(request)
+    
+    # Check for profanity in comment
+    if contains_profanity(data.text):
+        raise HTTPException(400, "Votre commentaire contient des termes inappropriés. Veuillez le modifier.")
+    
     rating = await db.video_ratings.find_one({"rating_id": rating_id})
     if not rating:
         raise HTTPException(404, "Video rating not found")
