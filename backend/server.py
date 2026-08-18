@@ -1,4 +1,5 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Request, Response
+from fastapi.responses import HTMLResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -1644,6 +1645,107 @@ async def mark_notifications_read(request: Request):
         {"$set": {"read": True}}
     )
     return {"success": True}
+
+# --- Public legal pages (hosted HTTPS URLs for App Store / Play Store listings) ---
+PRIVACY_POLICY_HTML = """<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Politique de Confidentialité — Social Cinema</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+         background: #09090B; color: #d4d4d8; margin: 0; padding: 0; line-height: 1.7; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 40px 24px 80px; }
+  h1 { color: #fff; font-size: 28px; margin-bottom: 4px; }
+  h2 { color: #fff; font-size: 19px; margin-top: 36px; }
+  .brand { color: #E11D48; font-weight: 800; font-size: 15px; letter-spacing: 1px; text-transform: uppercase; }
+  .updated { color: #71717A; font-style: italic; font-size: 14px; margin-bottom: 28px; }
+  strong { color: #f4f4f5; }
+  a { color: #E11D48; }
+  ul { padding-left: 22px; }
+  li { margin-bottom: 6px; }
+  footer { margin-top: 48px; color: #71717A; font-size: 13px; border-top: 1px solid #27272a; padding-top: 20px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">🎬 Social Cinema</div>
+  <h1>Politique de Confidentialité</h1>
+  <p class="updated">Dernière mise à jour : Juin 2026</p>
+
+  <h2>1. Introduction</h2>
+  <p>Social Cinema (« nous », « notre », « nos ») s'engage à protéger votre vie privée. Cette politique de confidentialité explique comment nous collectons, utilisons et protégeons vos informations personnelles lorsque vous utilisez notre application mobile.</p>
+
+  <h2>2. Données collectées</h2>
+  <p>Nous collectons les données suivantes :</p>
+  <ul>
+    <li><strong>Informations de compte</strong> : nom, adresse email, photo de profil</li>
+    <li><strong>Données d'utilisation</strong> : vidéos notées, commentaires, listes de lecture</li>
+    <li><strong>Données sociales</strong> : liste d'amis, interactions</li>
+    <li><strong>Données techniques</strong> : type d'appareil, système d'exploitation</li>
+  </ul>
+
+  <h2>3. Utilisation des données</h2>
+  <p>Vos données sont utilisées pour :</p>
+  <ul>
+    <li>Fournir et améliorer nos services</li>
+    <li>Personnaliser votre expérience</li>
+    <li>Permettre les fonctionnalités sociales</li>
+    <li>Envoyer des notifications importantes</li>
+    <li>Assurer la sécurité de l'application</li>
+  </ul>
+
+  <h2>4. Partage des données</h2>
+  <p>Nous ne vendons jamais vos données personnelles. Vos informations peuvent être partagées avec :</p>
+  <ul>
+    <li>Vos amis sur l'application (selon vos paramètres de confidentialité)</li>
+    <li>Nos prestataires techniques (hébergement, analyse)</li>
+    <li>Les autorités si requis par la loi</li>
+  </ul>
+
+  <h2>5. Intelligence artificielle</h2>
+  <p>Certaines fonctionnalités utilisent l'intelligence artificielle :</p>
+  <ul>
+    <li><strong>Recommandations personnalisées</strong> : les titres des vidéos que vous avez notées peuvent être transmis à OpenAI (États-Unis) afin de générer des suggestions de vidéos adaptées à vos goûts.</li>
+  </ul>
+  <p>Aucune donnée d'identité (nom, email, photo) n'est partagée avec ces services. Le contenu recommandé est généré par IA et clairement identifié comme tel. Vous consentez à ce traitement lors du premier lancement de l'application et pouvez retirer votre consentement en supprimant votre compte.</p>
+
+  <h2>6. Modération du contenu (UGC)</h2>
+  <p>Les contenus publiés par les utilisateurs (notes, commentaires) sont soumis à une politique de tolérance zéro envers les contenus répréhensibles : filtre automatique à la publication, signalement intégré dans l'application, examen des signalements sous 24 heures, et possibilité de bloquer tout utilisateur.</p>
+
+  <h2>7. Vos droits (RGPD)</h2>
+  <p>Conformément au RGPD, vous avez le droit de :</p>
+  <ul>
+    <li>Accéder à vos données personnelles</li>
+    <li>Rectifier vos données</li>
+    <li>Supprimer votre compte et vos données (depuis Paramètres → Supprimer mon compte)</li>
+    <li>Exporter vos données (depuis Paramètres → Exporter mes données)</li>
+    <li>Retirer votre consentement à tout moment</li>
+  </ul>
+
+  <h2>8. Sécurité</h2>
+  <p>Nous utilisons des mesures de sécurité techniques et organisationnelles pour protéger vos données, incluant le chiffrement des données en transit et au repos.</p>
+
+  <h2>9. Conservation des données</h2>
+  <p>Vos données sont conservées tant que votre compte est actif. Après suppression de votre compte, vos données sont effacées dans un délai de 30 jours.</p>
+
+  <h2>10. Âge minimum</h2>
+  <p>L'application est réservée aux personnes âgées de 13 ans ou plus. Aucune donnée n'est sciemment collectée auprès d'enfants de moins de 13 ans.</p>
+
+  <h2>11. Contact</h2>
+  <p>Pour toute question concernant cette politique de confidentialité ou vos données personnelles, contactez-nous à :<br>
+  📧 <a href="mailto:privacy@socialcinema.app">privacy@socialcinema.app</a></p>
+
+  <footer>© 2026 Social Cinema — Tous droits réservés.</footer>
+</div>
+</body>
+</html>"""
+
+@api_router.get("/legal/privacy", response_class=HTMLResponse)
+async def public_privacy_policy():
+    """Public hosted privacy policy (required by App Store Connect / Play Console listings)."""
+    return HTMLResponse(content=PRIVACY_POLICY_HTML)
 
 # --- Health ---
 @api_router.get("/health")

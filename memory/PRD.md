@@ -134,3 +134,7 @@ Letterboxd pour YouTube - Plateforme sociale de curation de vidéos YouTube.
 - **DEPLOYMENT FIXES** (health check): splash app.json → splash-image.png existant ; .gitignore n'exclut plus les .env ; JWT_SECRET obligatoire (fail-fast, plus de fallback) ; mot de passe SMTP retiré de memory/test_credentials.md (+ gitignoré) ; APP_URL inutilisé supprimé ; package-lock.json supprimé (yarn canonique) ; permissions CAMERA/STORAGE et descriptions iOS inutilisées retirées de app.json (aucun code caméra/galerie).
 - **INCIDENT résolu**: troncature de server.py (course d'écritures parallèles sed/search_replace) — queue du fichier restaurée depuis git HEAD.
 - Statut health check final: WARN uniquement (N+1 queries à optimiser plus tard, URL publique de politique de confidentialité à fournir dans les fiches store).
+
+## Page web publique Politique de Confidentialité (Juin 2026)
+- **FEATURE**: GET /api/legal/privacy — page HTML publique hébergée (HTMLResponse dans server.py, thème sombre) reprenant la politique in-app + sections modération UGC et âge minimum 13+. À utiliser comme "Privacy Policy URL" dans App Store Connect / Play Console. URL preview: https://rate-reels.preview.emergentagent.com/api/legal/privacy (en production: <domaine-déployé>/api/legal/privacy).
+- Info transmise à l'utilisateur: comptes développeur Apple (99 USD/an) et Google Play (25 USD unique) à sa charge; Emergent gère uniquement la génération des builds.
