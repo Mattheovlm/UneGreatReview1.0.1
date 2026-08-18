@@ -119,3 +119,11 @@ Letterboxd pour YouTube - Plateforme sociale de curation de vidéos YouTube.
 ### 2026-03-17
 - **FIX**: Amélioration de la barre de navigation (CustomTabBar)
 - **FEATURE**: Support des demi-étoiles dans les notations
+
+## Session Juin 2026 — Auth par code + Conformité App Store
+- **SUPPRIMÉ**: Connexion Google (bouton, endpoint /api/auth/google-session, auth-callback.tsx). Seule la connexion email/mot de passe subsiste.
+- **FEATURE**: Vérification email par CODE à 6 chiffres (remplace le lien). Écran `/verify-code` (6 cases, auto-submit, renvoi avec cooldown 30s). Code expire en 15 min, 5 tentatives max. Envoi via Gmail SMTP réel. Endpoints: POST /api/auth/verify-code, POST /api/auth/resend-code. Login non vérifié → 403 EMAIL_NOT_VERIFIED + nouveau code + redirection vers saisie du code.
+- **FEATURE (Apple 1.2 UGC)**: Signalement de contenu (POST /api/reports, db.reports, examen sous 24h) via ReportModal (drapeau sur la note et chaque commentaire). Blocage d'utilisateurs (POST/DELETE /api/users/{id}/block, GET /api/users/me/blocked) — contenu bloqué filtré du feed, discover, commentaires, recherche d'utilisateurs. Section "Utilisateurs bloqués" + Débloquer dans Paramètres.
+- **FEATURE (Legal/RGPD)**: Case 13+ obligatoire à l'inscription (age_confirmed backend), case acceptation CGU/Confidentialité avec liens, popup consentement RGPD au premier lancement (ConsentModal, AsyncStorage gdpr_consent_v1), divulgation IA (OpenAI) dans privacy.tsx, section modération/tolérance zéro dans terms.tsx.
+- **SUPPRIMÉ**: Onglets Recherche/Tendances YouTube (API key 401 — endpoints retirés). Page Ajouter = lien YouTube uniquement (oEmbed, sans clé). Lecture via player YouTube embarqué officiel (inchangé).
+- Tests: iteration_4.json — 17/17 backend, 100% frontend.

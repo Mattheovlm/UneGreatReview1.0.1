@@ -32,9 +32,10 @@ export default function LoginScreen() {
       });
       const data = await res.json();
       if (!res.ok) {
-        // Check if email not verified
+        // Email not verified: a fresh code was sent by the backend — go enter it
         if (data.detail && data.detail.startsWith('EMAIL_NOT_VERIFIED')) {
-          throw new Error("Votre email n'est pas encore confirmé.\n\nVérifiez votre boîte mail (et vos spams) pour cliquer sur le lien de confirmation.");
+          router.push({ pathname: '/verify-code', params: { email } });
+          return;
         }
         throw new Error(data.detail || 'Échec de connexion');
       }
@@ -52,13 +53,6 @@ export default function LoginScreen() {
       setError(e.message);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleGoogleLogin = () => {
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      const redirectUrl = window.location.origin + '/auth-callback';
-      window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
     }
   };
 
@@ -131,23 +125,6 @@ export default function LoginScreen() {
                 <Text style={styles.btnText}>Se connecter</Text>
               )}
             </TouchableOpacity>
-
-            <View style={styles.divider}>
-              <View style={[styles.divLine, { backgroundColor: colors.border }]} />
-              <Text style={[styles.divText, { color: colors.text_secondary }]}>ou</Text>
-              <View style={[styles.divLine, { backgroundColor: colors.border }]} />
-            </View>
-
-            <TouchableOpacity
-              testID="google-login-btn"
-              style={[styles.googleBtn, { backgroundColor: colors.bg_overlay, borderColor: colors.border }]}
-              onPress={handleGoogleLogin}
-            >
-              <MaterialCommunityIcons name="google" size={22} color="#DB4437" />
-              <Text style={[styles.googleBtnText, { color: colors.text_primary }]}>
-                Continuer avec Google
-              </Text>
-            </TouchableOpacity>
           </View>
 
           <TouchableOpacity
@@ -195,14 +172,6 @@ const styles = StyleSheet.create({
   input: { flex: 1, fontSize: 16 },
   btn: { borderRadius: 100, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
   btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 8 },
-  divLine: { flex: 1, height: 1 },
-  divText: { marginHorizontal: 16, fontSize: 14 },
-  googleBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    borderRadius: 100, paddingVertical: 14, gap: 10, borderWidth: 1,
-  },
-  googleBtnText: { fontSize: 16, fontWeight: '600' },
   switchLink: { flexDirection: 'row', justifyContent: 'center', marginTop: 24 },
   switchText: { fontSize: 15 },
   switchTextBold: { fontSize: 15, fontWeight: '700' },

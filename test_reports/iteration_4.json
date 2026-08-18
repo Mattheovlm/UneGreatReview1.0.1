@@ -1,0 +1,84 @@
+{
+  "summary": "Iteration 4 (Apple App Store compliance + auth code + Google/YouTube removal) fully validated. Backend: 17/17 pytest passed. Frontend: GDPR consent modal, register with age+CGU checkboxes, 6-digit code verification, login without Google button, Add tab link-only, report modal, block user button, Settings 'Utilisateurs bloqués' section — all working end-to-end on mobile viewport (390x844).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [],
+    "notes": [
+      "Deprecation warnings only (non-blocking): 'shadow*' style props are deprecated (use boxShadow) and props.pointerEvents deprecated (use style.pointerEvents). Appear on all pages. Should be cleaned up in a future pass."
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_new_features_iter4.py",
+    "/app/test_reports/pytest/pytest_iter4.xml"
+  ],
+  "action_items": [
+    "(Optional) Migrate 'shadow*' style props to boxShadow and props.pointerEvents to style.pointerEvents to remove RN Web deprecation warnings."
+  ],
+  "critical_code_review_comments": [
+    "POST /api/auth/register correctly blocks when age_confirmed is missing/false (400 with FR message)",
+    "POST /api/auth/register on existing unverified email rotates the verification code and resends it",
+    "POST /api/auth/verify-code increments verification_attempts and returns 429 after 5 wrong attempts",
+    "POST /api/auth/resend-code enforces a 30s cooldown (429) and rejects already-verified emails (400)",
+    "POST /api/auth/login returns 403 with 'EMAIL_NOT_VERIFIED' for unverified users AND regenerates a code",
+    "Removed endpoints confirmed absent: /api/auth/google-session, /api/youtube/search, /api/youtube/trending all return 404",
+    "POST /api/reports validates content_type (rating|comment|user), requires auth (401), returns report_id",
+    "POST /api/users/{id}/block, DELETE /api/users/{id}/block, GET /api/users/me/blocked full round-trip works and self-blocking returns 400",
+    "Blocked user's rating is excluded from GET /api/videos/discover (verified end-to-end via block → rate → discover query)",
+    "Frontend register page: age-checkbox and terms-checkbox testIDs present; validation message shown when unchecked",
+    "verify-code screen: 6-digit input (testID verify-code-input), resend button with visible 30s countdown ('Renvoyer le code (29s)')",
+    "Login page: no 'Continuer avec Google' button; testcode@example.com/test123 signs in and lands on the tabs home",
+    "Add tab: single YouTube URL field only (no Recherche/Tendances). Paste of Rick Astley URL fetches title/thumbnail and shows star rating UI",
+    "Video detail page: report-rating-btn opens modal with reasons (haineux, harcèlement, sexuel, violence, spam, usurpation), successful submit shows 'Signalement envoyé' confirmation and offers 'Bloquer <user>'",
+    "Settings screen shows 'UTILISATEURS BLOQUÉS' section (empty state 'Aucun utilisateur bloqué' rendered correctly)"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_new_features_iter4.py (new)",
+    "/app/test_reports/pytest/pytest_iter4.xml (new)"
+  ],
+  "success_rate": {
+    "backend": "100% (17/17 pytest)",
+    "frontend": "100% (all 6 UI flows verified)"
+  },
+  "seed_data_creation": "Test users prefixed 'TEST_*@example.com' created during pytest (register + verify via DB code). No production data touched.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All iteration 4 features (App Store compliance UGC signalement/block/age/CGU, GDPR consent modal, email code verification, removal of Google login and YouTube search/trending) verified on both backend (pytest_iter4.xml) and frontend UI at 390x844. Test file /app/backend/tests/test_new_features_iter4.py reads codes directly from MongoDB via mongosh — reusable for regressions. Only leftover: non-blocking RN Web deprecation warnings ('shadow*' props, pointerEvents prop).",
+  "backend_test_results": {
+    "total_tests": 17,
+    "passed": 17,
+    "failed": 0,
+    "test_categories": {
+      "auth_new_flow": "9/9 (register age gate, requires_verification, code rotation, verify wrong/correct, 429 after 5 attempts, resend 30s cooldown, resend already-verified 400, login 403 EMAIL_NOT_VERIFIED, testcode login)",
+      "removed_endpoints": "3/3 (google-session 404, youtube/search 404, youtube/trending 404)",
+      "reports": "3/3 (auth required, invalid type 400, success returns report_id)",
+      "blocking": "2/2 (full block/rate/discover-filter/unblock cycle, cannot block self)"
+    }
+  },
+  "frontend_test_results": {
+    "features_tested": [
+      "GDPR consent modal at first launch (testID consent-accept-btn) — ✅",
+      "Login page has no Google button; testcode@example.com/test123 works — ✅",
+      "Register: age-checkbox + terms-checkbox required, error shown when unchecked — ✅",
+      "Verify-code page: 6-digit input + resend cooldown (29s displayed); code from DB completes signup — ✅",
+      "Add tab: single YouTube link input only, paste fetches preview + rating UI — ✅",
+      "Video detail: report-rating-btn opens report modal with reasons; submit shows 'Signalement envoyé' + 'Bloquer <name>' — ✅",
+      "Settings: 'UTILISATEURS BLOQUÉS' section present — ✅"
+    ]
+  },
+  "api_endpoints_tested": [
+    "POST /api/auth/register (age gate, new user, existing unverified) — ✅",
+    "POST /api/auth/verify-code (wrong, correct, rate-limit 429) — ✅",
+    "POST /api/auth/resend-code (30s cooldown 429, already-verified 400) — ✅",
+    "POST /api/auth/login (403 unverified, 200 verified) — ✅",
+    "POST /api/auth/google-session — ✅ 404 (removed)",
+    "GET /api/youtube/search — ✅ 404 (removed)",
+    "GET /api/youtube/trending — ✅ 404 (removed)",
+    "POST /api/reports (401 unauth, 400 bad type, 200 with report_id) — ✅",
+    "POST/DELETE /api/users/{id}/block + GET /api/users/me/blocked — ✅",
+    "GET /api/videos/discover excludes blocked user content — ✅"
+  ],
+  "outstanding_items": []
+}

@@ -3,6 +3,7 @@ import { ThemeProvider } from '../src/contexts/ThemeContext';
 import { AuthProvider } from '../src/contexts/AuthContext';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import ConsentModal from '../src/components/ConsentModal';
 
 export default function RootLayout() {
   return (
@@ -14,7 +15,7 @@ export default function RootLayout() {
             <Stack.Screen name="index" />
             <Stack.Screen name="login" />
             <Stack.Screen name="register" />
-            <Stack.Screen name="auth-callback" />
+            <Stack.Screen name="verify-code" />
             <Stack.Screen name="(tabs)" />
             <Stack.Screen
               name="video/[id]"
@@ -28,8 +29,8 @@ export default function RootLayout() {
             <Stack.Screen name="privacy" />
             <Stack.Screen name="terms" />
             <Stack.Screen name="playlist/[id]" />
-            <Stack.Screen name="verify-email" />
           </Stack>
+          <ConsentModal />
         </AuthProvider>
       </ThemeProvider>
     </SafeAreaProvider>

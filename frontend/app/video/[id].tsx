@@ -11,6 +11,7 @@ import { useTheme } from '../../src/contexts/ThemeContext';
 import { apiCall } from '../../src/utils/api';
 import StarRating from '../../src/components/StarRating';
 import AddToPlaylistModal from '../../src/components/AddToPlaylistModal';
+import ReportModal from '../../src/components/ReportModal';
 import FloatingTabBar from '../../src/components/FloatingTabBar';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -126,6 +127,7 @@ export default function VideoDetailScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [playlistModal, setPlaylistModal] = useState(false);
+  const [reportTarget, setReportTarget] = useState<any>(null);
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [liking, setLiking] = useState(false);
@@ -234,6 +236,17 @@ export default function VideoDetailScreen() {
     }
   };
 
+  const handleBlocked = () => {
+    if (!reportTarget) return;
+    if (reportTarget.contentType === 'comment' && reportTarget.targetUser) {
+      // Hide blocked user's comments immediately
+      setVideo((prev: any) => ({
+        ...prev,
+        comments: (prev.comments || []).filter((c: any) => c.user_id !== reportTarget.targetUser.user_id),
+      }));
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.overlay}>
@@ -310,6 +323,17 @@ export default function VideoDetailScreen() {
                     onPress={() => setPlaylistModal(true)}
                   >
                     <MaterialCommunityIcons name="playlist-plus" size={16} color={colors.primary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    testID="report-rating-btn"
+                    style={[styles.actionBtn, { backgroundColor: colors.bg_overlay }]}
+                    onPress={() => setReportTarget({
+                      contentType: 'rating',
+                      contentId: id,
+                      targetUser: video.user ? { user_id: video.user.user_id, name: video.user.name } : null,
+                    })}
+                  >
+                    <MaterialCommunityIcons name="flag-outline" size={16} color={colors.text_secondary} />
                   </TouchableOpacity>
                   <TouchableOpacity
                     testID="open-youtube-btn"
@@ -469,6 +493,18 @@ export default function VideoDetailScreen() {
                         <Text style={[styles.commentAuthor, { color: colors.text_primary }]}>
                           {c.user?.name || 'Utilisateur'}
                         </Text>
+                        <TouchableOpacity
+                          testID={`report-comment-${c.comment_id}`}
+                          style={styles.commentFlagBtn}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                          onPress={() => setReportTarget({
+                            contentType: 'comment',
+                            contentId: c.comment_id,
+                            targetUser: c.user ? { user_id: c.user.user_id, name: c.user.name } : null,
+                          })}
+                        >
+                          <MaterialCommunityIcons name="flag-outline" size={14} color={colors.text_secondary} />
+                        </TouchableOpacity>
                       </View>
                       <Text style={[styles.commentTextStyle, { color: colors.text_secondary }]}>{c.text}</Text>
                     </View>
@@ -527,6 +563,16 @@ export default function VideoDetailScreen() {
         } : null}
       />
       
+      {/* Report / Block Modal (UGC moderation) */}
+      <ReportModal
+        visible={!!reportTarget}
+        onClose={() => setReportTarget(null)}
+        contentType={reportTarget?.contentType || 'rating'}
+        contentId={reportTarget?.contentId || ''}
+        targetUser={reportTarget?.targetUser || null}
+        onBlocked={handleBlocked}
+      />
+
       {/* Bottom Navigation */}
       <FloatingTabBar />
     </View>
@@ -671,6 +717,7 @@ const styles = StyleSheet.create({
   commentHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
   commentAvatar: { width: 24, height: 24, borderRadius: 12 },
   commentAuthor: { fontSize: 13, fontWeight: '600', marginLeft: 8 },
+  commentFlagBtn: { marginLeft: 'auto', padding: 4 },
   commentTextStyle: { fontSize: 14, lineHeight: 20 },
   recoSection: { marginTop: 8 },
   recoCard: { width: 160, borderRadius: 10, overflow: 'hidden', marginRight: 10 },

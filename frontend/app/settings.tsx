@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Switch, ScrollView, Alert, Linking, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Switch, ScrollView, Alert, Linking, Platform, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../src/contexts/AuthContext';
@@ -14,6 +14,22 @@ export default function SettingsScreen() {
   const { user, logout, token } = useAuth();
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
+  const [blockedUsers, setBlockedUsers] = useState<any[]>([]);
+
+  useEffect(() => {
+    apiCall('/api/users/me/blocked')
+      .then((list) => setBlockedUsers(Array.isArray(list) ? list : []))
+      .catch(() => {});
+  }, []);
+
+  const handleUnblock = async (userId: string) => {
+    try {
+      await apiCall(`/api/users/${userId}/block`, { method: 'DELETE' });
+      setBlockedUsers((prev) => prev.filter((u) => u.user_id !== userId));
+    } catch (e: any) {
+      Alert.alert('Erreur', e.message || 'Impossible de débloquer');
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -105,6 +121,35 @@ export default function SettingsScreen() {
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.bg_card }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text_secondary }]}>UTILISATEURS BLOQUÉS</Text>
+          {blockedUsers.length === 0 ? (
+            <Text style={[styles.emptyBlocked, { color: colors.text_secondary }]}>
+              Aucun utilisateur bloqué
+            </Text>
+          ) : (
+            blockedUsers.map((u) => (
+              <View key={u.user_id} style={styles.settingRow}>
+                <View style={styles.settingInfo}>
+                  {u.picture ? (
+                    <Image source={{ uri: u.picture }} style={styles.blockedAvatar} />
+                  ) : (
+                    <MaterialCommunityIcons name="account-cancel" size={22} color={colors.text_secondary} />
+                  )}
+                  <Text style={[styles.settingText, { color: colors.text_primary }]}>{u.name}</Text>
+                </View>
+                <TouchableOpacity
+                  testID={`unblock-${u.user_id}`}
+                  style={[styles.unblockBtn, { borderColor: colors.primary }]}
+                  onPress={() => handleUnblock(u.user_id)}
+                >
+                  <Text style={[styles.unblockText, { color: colors.primary }]}>Débloquer</Text>
+                </TouchableOpacity>
+              </View>
+            ))
+          )}
+        </View>
+
+        <View style={[styles.section, { backgroundColor: colors.bg_card }]}>
           <Text style={[styles.sectionTitle, { color: colors.text_secondary }]}>SUPPORT</Text>
           <TouchableOpacity
             testID="contact-support-btn"
@@ -192,6 +237,13 @@ const styles = StyleSheet.create({
   },
   settingInfo: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   settingText: { fontSize: 16 },
+  emptyBlocked: { fontSize: 14, fontStyle: 'italic' },
+  blockedAvatar: { width: 28, height: 28, borderRadius: 14 },
+  unblockBtn: {
+    borderWidth: 1, borderRadius: 100, paddingHorizontal: 14, paddingVertical: 6,
+    minHeight: 32, justifyContent: 'center',
+  },
+  unblockText: { fontSize: 13, fontWeight: '600' },
   logoutBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     borderRadius: 12, paddingVertical: 16, gap: 8, marginTop: 8,

@@ -20,7 +20,7 @@ export default function PrivacyPolicyScreen() {
 
       <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
         <Text style={[styles.lastUpdated, { color: colors.text_secondary }]}>
-          Dernière mise à jour : Avril 2025
+          Dernière mise à jour : Juin 2026
         </Text>
 
         <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>1. Introduction</Text>
@@ -55,7 +55,14 @@ export default function PrivacyPolicyScreen() {
           • Les autorités si requis par la loi
         </Text>
 
-        <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>5. Vos droits (RGPD)</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>5. Intelligence artificielle</Text>
+        <Text style={[styles.paragraph, { color: colors.text_secondary }]}>
+          Certaines fonctionnalités utilisent l'intelligence artificielle :{'\n\n'}
+          • <Text style={{ fontWeight: '600' }}>Recommandations personnalisées</Text> : les titres des vidéos que vous avez notées peuvent être transmis à OpenAI (États-Unis) afin de générer des suggestions de vidéos adaptées à vos goûts.{'\n\n'}
+          Aucune donnée d'identité (nom, email, photo) n'est partagée avec ces services. Le contenu recommandé est généré par IA et clairement identifié comme tel. Vous consentez à ce traitement lors du premier lancement de l'application et pouvez retirer votre consentement en supprimant votre compte.
+        </Text>
+
+        <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>6. Vos droits (RGPD)</Text>
         <Text style={[styles.paragraph, { color: colors.text_secondary }]}>
           Conformément au RGPD, vous avez le droit de :{'\n\n'}
           • Accéder à vos données personnelles{'\n'}
@@ -65,17 +72,17 @@ export default function PrivacyPolicyScreen() {
           • Retirer votre consentement à tout moment
         </Text>
 
-        <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>6. Sécurité</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>7. Sécurité</Text>
         <Text style={[styles.paragraph, { color: colors.text_secondary }]}>
           Nous utilisons des mesures de sécurité techniques et organisationnelles pour protéger vos données, incluant le chiffrement des données en transit et au repos.
         </Text>
 
-        <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>7. Conservation des données</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>8. Conservation des données</Text>
         <Text style={[styles.paragraph, { color: colors.text_secondary }]}>
           Vos données sont conservées tant que votre compte est actif. Après suppression de votre compte, vos données sont effacées dans un délai de 30 jours.
         </Text>
 
-        <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>8. Contact</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>9. Contact</Text>
         <Text style={[styles.paragraph, { color: colors.text_secondary }]}>
           Pour toute question concernant cette politique de confidentialité ou vos données personnelles, contactez-nous à :{'\n\n'}
           📧 privacy@socialcinema.app

@@ -20,7 +20,7 @@ export default function TermsScreen() {
 
       <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
         <Text style={[styles.lastUpdated, { color: colors.text_secondary }]}>
-          Dernière mise à jour : Avril 2025
+          Dernière mise à jour : Juin 2026
         </Text>
 
         <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>1. Acceptation des conditions</Text>
@@ -55,7 +55,17 @@ export default function TermsScreen() {
           Nous nous réservons le droit de supprimer tout contenu inapproprié.
         </Text>
 
-        <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>5. Comportement interdit</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>5. Modération et tolérance zéro</Text>
+        <Text style={[styles.paragraph, { color: colors.text_secondary }]}>
+          Nous appliquons une politique de tolérance zéro envers les contenus répréhensibles et les utilisateurs abusifs :{'\n\n'}
+          • Un filtre automatique bloque les contenus injurieux à la publication{'\n'}
+          • Chaque note et commentaire peut être signalé via le bouton de signalement (drapeau){'\n'}
+          • Tout contenu signalé est examiné dans un délai de 24 heures{'\n'}
+          • Vous pouvez bloquer un utilisateur : son contenu ne vous sera plus affiché{'\n'}
+          • Les utilisateurs abusifs seront exclus et leur contenu supprimé
+        </Text>
+
+        <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>6. Comportement interdit</Text>
         <Text style={[styles.paragraph, { color: colors.text_secondary }]}>
           Il est interdit de :{'\n\n'}
           • Harceler ou intimider d'autres utilisateurs{'\n'}
@@ -65,27 +75,27 @@ export default function TermsScreen() {
           • Utiliser l'application à des fins commerciales non autorisées
         </Text>
 
-        <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>6. Propriété intellectuelle</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>7. Propriété intellectuelle</Text>
         <Text style={[styles.paragraph, { color: colors.text_secondary }]}>
           Social Cinema et son contenu original (design, logos, textes) sont protégés par les droits d'auteur. Les vidéos YouTube restent la propriété de leurs créateurs respectifs.
         </Text>
 
-        <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>7. Limitation de responsabilité</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>8. Limitation de responsabilité</Text>
         <Text style={[styles.paragraph, { color: colors.text_secondary }]}>
           L'application est fournie "en l'état". Nous ne garantissons pas que le service sera ininterrompu ou exempt d'erreurs. Nous ne sommes pas responsables des contenus publiés par les utilisateurs.
         </Text>
 
-        <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>8. Résiliation</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>9. Résiliation</Text>
         <Text style={[styles.paragraph, { color: colors.text_secondary }]}>
           Nous pouvons suspendre ou résilier votre compte en cas de violation de ces conditions. Vous pouvez supprimer votre compte à tout moment via les paramètres de l'application.
         </Text>
 
-        <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>9. Modifications</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>10. Modifications</Text>
         <Text style={[styles.paragraph, { color: colors.text_secondary }]}>
           Nous nous réservons le droit de modifier ces conditions à tout moment. Les utilisateurs seront informés des changements significatifs.
         </Text>
 
-        <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>10. Contact</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>11. Contact</Text>
         <Text style={[styles.paragraph, { color: colors.text_secondary }]}>
           Pour toute question concernant ces conditions d'utilisation :{'\n\n'}
           📧 legal@socialcinema.app

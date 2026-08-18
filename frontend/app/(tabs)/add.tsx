@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, Image, StyleSheet,
   SafeAreaView, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert,
-  Animated, FlatList, Modal,
+  Animated, Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -10,14 +10,11 @@ import { useTheme } from '../../src/contexts/ThemeContext';
 import { apiCall } from '../../src/utils/api';
 import StarRating from '../../src/components/StarRating';
 
-type TabType = 'url' | 'search' | 'trending';
-
 export default function AddVideoScreen() {
   const { colors } = useTheme();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<TabType>('url');
-  
-  // URL Tab state
+
+  // URL state
   const [url, setUrl] = useState('');
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
@@ -30,25 +27,12 @@ export default function AddVideoScreen() {
   // Success modal state
   const [showSuccess, setShowSuccess] = useState(false);
   
-  // Search Tab state
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [searching, setSearching] = useState(false);
-  
-  // Trending Tab state
-  const [trendingVideos, setTrendingVideos] = useState<any[]>([]);
-  const [loadingTrending, setLoadingTrending] = useState(false);
-  
-  // Selected video for rating
-  const [selectedVideo, setSelectedVideo] = useState<any>(null);
-  
   // Animation for preview card
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
   
   // Debounce timer ref
   const debounceTimer = useRef<any>(null);
-  const searchTimer = useRef<any>(null);
 
   const extractYoutubeId = (ytUrl: string) => {
     const patterns = [
@@ -132,75 +116,8 @@ export default function AddVideoScreen() {
     };
   }, [url, fetchVideoInfo]);
 
-  // YouTube Search
-  const searchYouTube = async (query: string) => {
-    if (!query || query.length < 2) {
-      setSearchResults([]);
-      return;
-    }
-    
-    setSearching(true);
-    try {
-      const results = await apiCall(`/api/youtube/search?q=${encodeURIComponent(query)}&max_results=15`);
-      setSearchResults(results || []);
-    } catch (e) {
-      console.error('Search error:', e);
-      setSearchResults([]);
-    }
-    setSearching(false);
-  };
-
-  // Debounced search
-  useEffect(() => {
-    if (searchTimer.current) {
-      clearTimeout(searchTimer.current);
-    }
-    
-    if (searchQuery.trim().length >= 2) {
-      searchTimer.current = setTimeout(() => {
-        searchYouTube(searchQuery);
-      }, 500);
-    } else {
-      setSearchResults([]);
-    }
-    
-    return () => {
-      if (searchTimer.current) {
-        clearTimeout(searchTimer.current);
-      }
-    };
-  }, [searchQuery]);
-
-  // Load trending videos
-  const loadTrending = async () => {
-    if (trendingVideos.length > 0) return;
-    setLoadingTrending(true);
-    try {
-      const results = await apiCall('/api/youtube/trending?max_results=20');
-      setTrendingVideos(results || []);
-    } catch (e) {
-      console.error('Trending error:', e);
-    }
-    setLoadingTrending(false);
-  };
-
-  useEffect(() => {
-    if (activeTab === 'trending') {
-      loadTrending();
-    }
-  }, [activeTab]);
-
-  const handlePreview = () => {
-    const id = extractYoutubeId(url);
-    if (!id) {
-      Alert.alert('Erreur', 'URL YouTube invalide');
-      return;
-    }
-    fetchVideoInfo(url);
-  };
-
   const handleSubmit = async () => {
-    const videoToSubmit = selectedVideo || preview;
+    const videoToSubmit = preview;
     if (!videoToSubmit || rating === 0) {
       Alert.alert('Erreur', 'Sélectionnez une vidéo et une note');
       return;
@@ -221,7 +138,6 @@ export default function AddVideoScreen() {
       setRating(0);
       setComment('');
       setPreview(null);
-      setSelectedVideo(null);
       setSubmitting(false);
       
       // Show success modal
@@ -238,63 +154,7 @@ export default function AddVideoScreen() {
     router.replace('/(tabs)');
   };
 
-  const selectVideoFromSearch = (video: any) => {
-    setSelectedVideo(video);
-    setActiveTab('url'); // Switch back to URL tab to show rating form
-  };
-
-  const renderSearchResult = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={[styles.searchResultCard, { backgroundColor: colors.bg_card }]}
-      onPress={() => selectVideoFromSearch(item)}
-      activeOpacity={0.7}
-    >
-      <Image source={{ uri: item.thumbnail }} style={styles.searchThumb} />
-      <View style={styles.searchInfo}>
-        <Text style={[styles.searchTitle, { color: colors.text_primary }]} numberOfLines={2}>
-          {item.title}
-        </Text>
-        <Text style={[styles.searchChannel, { color: colors.text_secondary }]} numberOfLines={1}>
-          {item.channel_name}
-        </Text>
-      </View>
-      <MaterialCommunityIcons name="plus-circle" size={28} color={colors.primary} />
-    </TouchableOpacity>
-  );
-
-  const renderTrendingVideo = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={[styles.trendingCard, { backgroundColor: colors.bg_card }]}
-      onPress={() => selectVideoFromSearch(item)}
-      activeOpacity={0.7}
-    >
-      <Image source={{ uri: item.thumbnail }} style={styles.trendingThumb} />
-      <View style={styles.trendingOverlay}>
-        <MaterialCommunityIcons name="fire" size={16} color="#FF6B35" />
-      </View>
-      <View style={styles.trendingInfo}>
-        <Text style={[styles.trendingTitle, { color: colors.text_primary }]} numberOfLines={2}>
-          {item.title}
-        </Text>
-        <Text style={[styles.trendingChannel, { color: colors.text_secondary }]} numberOfLines={1}>
-          {item.channel_name}
-        </Text>
-        {item.view_count > 0 && (
-          <Text style={[styles.trendingViews, { color: colors.text_secondary }]}>
-            {formatViewCount(item.view_count)} vues
-          </Text>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
-
-  const formatViewCount = (count: number) => {
-    if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
-    if (count >= 1000) return `${(count / 1000).toFixed(0)}K`;
-    return count.toString();
-  };
-
-  const currentVideo = selectedVideo || preview;
+  const currentVideo = preview;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg_root }]}>
@@ -303,56 +163,10 @@ export default function AddVideoScreen() {
           <View style={styles.header}>
             <Text style={[styles.headerTitle, { color: colors.text_primary }]}>Noter une vidéo</Text>
             <Text style={[styles.headerSub, { color: colors.text_secondary }]}>
-              Collez un lien ou recherchez sur YouTube
+              Collez un lien YouTube pour noter la vidéo
             </Text>
           </View>
 
-          {/* Tabs */}
-          <View style={[styles.tabsContainer, { backgroundColor: colors.bg_card }]}>
-            <TouchableOpacity
-              style={[styles.tab, activeTab === 'url' && { backgroundColor: colors.primary }]}
-              onPress={() => setActiveTab('url')}
-            >
-              <MaterialCommunityIcons 
-                name="link-variant" 
-                size={18} 
-                color={activeTab === 'url' ? '#fff' : colors.text_secondary} 
-              />
-              <Text style={[styles.tabText, { color: activeTab === 'url' ? '#fff' : colors.text_secondary }]}>
-                Lien
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.tab, activeTab === 'search' && { backgroundColor: colors.primary }]}
-              onPress={() => setActiveTab('search')}
-            >
-              <MaterialCommunityIcons 
-                name="magnify" 
-                size={18} 
-                color={activeTab === 'search' ? '#fff' : colors.text_secondary} 
-              />
-              <Text style={[styles.tabText, { color: activeTab === 'search' ? '#fff' : colors.text_secondary }]}>
-                Recherche
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.tab, activeTab === 'trending' && { backgroundColor: colors.primary }]}
-              onPress={() => setActiveTab('trending')}
-            >
-              <MaterialCommunityIcons 
-                name="fire" 
-                size={18} 
-                color={activeTab === 'trending' ? '#fff' : colors.text_secondary} 
-              />
-              <Text style={[styles.tabText, { color: activeTab === 'trending' ? '#fff' : colors.text_secondary }]}>
-                Tendances
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* URL Tab Content */}
-          {activeTab === 'url' && (
-            <>
               <View
                 style={[styles.urlRow, { backgroundColor: colors.bg_card, borderColor: colors.border }]}
               >
@@ -368,7 +182,7 @@ export default function AddVideoScreen() {
                   autoCorrect={false}
                 />
                 {url.length > 0 && (
-                  <TouchableOpacity onPress={() => { setUrl(''); setPreview(null); setSelectedVideo(null); }}>
+                  <TouchableOpacity onPress={() => { setUrl(''); setPreview(null); }}>
                     <MaterialCommunityIcons name="close-circle" size={20} color={colors.text_secondary} />
                   </TouchableOpacity>
                 )}
@@ -399,8 +213,8 @@ export default function AddVideoScreen() {
                     styles.previewCard, 
                     { 
                       backgroundColor: colors.bg_card,
-                      opacity: selectedVideo ? 1 : fadeAnim,
-                      transform: selectedVideo ? [] : [{ translateY: slideAnim }]
+                      opacity: fadeAnim,
+                      transform: [{ translateY: slideAnim }]
                     }
                   ]}
                 >
@@ -413,14 +227,6 @@ export default function AddVideoScreen() {
                       <MaterialCommunityIcons name="youtube" size={14} color="#FF0000" />
                       <Text style={styles.youtubeTagText}>YouTube</Text>
                     </View>
-                    {selectedVideo && (
-                      <TouchableOpacity 
-                        style={styles.removeVideoBtn}
-                        onPress={() => setSelectedVideo(null)}
-                      >
-                        <MaterialCommunityIcons name="close" size={18} color="#fff" />
-                      </TouchableOpacity>
-                    )}
                   </View>
                   
                   <View style={styles.previewInfo}>
@@ -498,85 +304,6 @@ export default function AddVideoScreen() {
                   </TouchableOpacity>
                 </>
               )}
-            </>
-          )}
-
-          {/* Search Tab Content */}
-          {activeTab === 'search' && (
-            <>
-              <View
-                style={[styles.searchInputRow, { backgroundColor: colors.bg_card, borderColor: colors.border }]}
-              >
-                <MaterialCommunityIcons name="magnify" size={24} color={colors.text_secondary} />
-                <TextInput
-                  style={[styles.searchInput, { color: colors.text_primary }]}
-                  placeholder="Rechercher sur YouTube..."
-                  placeholderTextColor={colors.text_secondary}
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-                {searching && <ActivityIndicator size="small" color={colors.primary} />}
-              </View>
-
-              {searchResults.length > 0 && (
-                <View style={styles.searchResultsContainer}>
-                  {searchResults.map((item, index) => (
-                    <View key={item.youtube_id || index}>
-                      {renderSearchResult({ item })}
-                    </View>
-                  ))}
-                </View>
-              )}
-
-              {searchQuery.length >= 2 && searchResults.length === 0 && !searching && (
-                <View style={styles.emptyState}>
-                  <MaterialCommunityIcons name="magnify-close" size={48} color={colors.text_secondary} />
-                  <Text style={[styles.emptyText, { color: colors.text_secondary }]}>
-                    Aucun résultat pour "{searchQuery}"
-                  </Text>
-                </View>
-              )}
-
-              {searchQuery.length < 2 && (
-                <View style={styles.emptyState}>
-                  <MaterialCommunityIcons name="youtube" size={48} color={colors.text_secondary} />
-                  <Text style={[styles.emptyText, { color: colors.text_secondary }]}>
-                    Tapez au moins 2 caractères pour rechercher
-                  </Text>
-                </View>
-              )}
-            </>
-          )}
-
-          {/* Trending Tab Content */}
-          {activeTab === 'trending' && (
-            <>
-              <View style={styles.trendingHeader}>
-                <MaterialCommunityIcons name="fire" size={24} color="#FF6B35" />
-                <Text style={[styles.trendingHeaderText, { color: colors.text_primary }]}>
-                  Tendances YouTube France
-                </Text>
-              </View>
-
-              {loadingTrending && (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color={colors.primary} />
-                </View>
-              )}
-
-              {!loadingTrending && trendingVideos.length > 0 && (
-                <View style={styles.trendingList}>
-                  {trendingVideos.map((item, index) => (
-                    <View key={item.youtube_id || index}>
-                      {renderTrendingVideo({ item })}
-                    </View>
-                  ))}
-                </View>
-              )}
-            </>
-          )}
         </ScrollView>
       </KeyboardAvoidingView>
       
@@ -618,27 +345,6 @@ const styles = StyleSheet.create({
   header: { marginBottom: 20 },
   headerTitle: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
   headerSub: { fontSize: 15, marginTop: 4 },
-  
-  // Tabs
-  tabsContainer: {
-    flexDirection: 'row',
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 16,
-  },
-  tab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 10,
-    gap: 6,
-  },
-  tabText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
   
   // URL Input
   urlRow: {
@@ -712,17 +418,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#333',
   },
-  removeVideoBtn: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    borderRadius: 15,
-    width: 30,
-    height: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   previewInfo: {
     padding: 14,
   },
@@ -771,104 +466,6 @@ const styles = StyleSheet.create({
     borderRadius: 100, paddingVertical: 16, marginTop: 24, gap: 8,
   },
   submitText: { fontSize: 16, fontWeight: '700', color: '#fff' },
-  
-  // Search
-  searchInputRow: {
-    flexDirection: 'row', alignItems: 'center', borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, gap: 10,
-  },
-  searchInput: { flex: 1, fontSize: 16 },
-  searchResultsContainer: {
-    marginTop: 16,
-    gap: 10,
-  },
-  searchResultCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 12,
-    padding: 10,
-    gap: 12,
-  },
-  searchThumb: {
-    width: 100,
-    height: 56,
-    borderRadius: 8,
-  },
-  searchInfo: {
-    flex: 1,
-  },
-  searchTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    lineHeight: 18,
-  },
-  searchChannel: {
-    fontSize: 12,
-    marginTop: 4,
-  },
-  
-  // Trending
-  trendingHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 16,
-  },
-  trendingHeaderText: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  trendingList: {
-    gap: 12,
-  },
-  trendingCard: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  trendingThumb: {
-    width: '100%',
-    aspectRatio: 16 / 9,
-  },
-  trendingOverlay: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    borderRadius: 20,
-    padding: 6,
-  },
-  trendingInfo: {
-    padding: 12,
-  },
-  trendingTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    lineHeight: 20,
-  },
-  trendingChannel: {
-    fontSize: 13,
-    marginTop: 4,
-  },
-  trendingViews: {
-    fontSize: 12,
-    marginTop: 4,
-  },
-  
-  // Empty state
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-  },
-  emptyText: {
-    fontSize: 14,
-    marginTop: 12,
-    textAlign: 'center',
-  },
-  loadingContainer: {
-    paddingVertical: 60,
-    alignItems: 'center',
-  },
   
   // Success Modal
   successModalOverlay: {

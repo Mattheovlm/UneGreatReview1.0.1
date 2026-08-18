@@ -14,9 +14,10 @@ export default function RegisterScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [verificationSent, setVerificationSent] = useState(false);
   const { login } = useAuth();
   const { colors } = useTheme();
   const router = useRouter();
@@ -24,19 +25,21 @@ export default function RegisterScreen() {
   const handleRegister = async () => {
     if (!name || !email || !password) { setError('Remplissez tous les champs'); return; }
     if (password.length < 6) { setError('Le mot de passe doit faire au moins 6 caractères'); return; }
+    if (!ageConfirmed) { setError('Vous devez confirmer avoir au moins 13 ans'); return; }
+    if (!termsAccepted) { setError("Vous devez accepter les Conditions d'Utilisation et la Politique de Confidentialité"); return; }
     setLoading(true);
     setError('');
     try {
       const res = await fetch(`${API_URL}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, password, age_confirmed: ageConfirmed }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Échec de l'inscription");
 
       if (data.requires_verification) {
-        setVerificationSent(true);
+        router.push({ pathname: '/verify-code', params: { email } });
       } else {
         await login(data.session_token, {
           user_id: data.user_id,
@@ -52,39 +55,6 @@ export default function RegisterScreen() {
       setLoading(false);
     }
   };
-
-  if (verificationSent) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.bg_root }]}>
-        <View style={styles.confirmContainer}>
-          <MaterialCommunityIcons name="email-check-outline" size={72} color={colors.primary} />
-          <Text style={[styles.confirmTitle, { color: colors.text_primary }]}>
-            Vérifiez vos emails !
-          </Text>
-          <Text style={[styles.confirmText, { color: colors.text_secondary }]}>
-            Un lien de confirmation a été envoyé à
-          </Text>
-          <Text style={[styles.confirmEmail, { color: colors.text_primary }]}>{email}</Text>
-          <Text style={[styles.confirmHint, { color: colors.text_secondary }]}>
-            Cliquez sur le lien dans votre boîte mail pour activer votre compte.
-            {'\n\n'}Pensez à vérifier vos spams si vous ne le voyez pas.
-          </Text>
-          
-          <TouchableOpacity
-            style={[styles.btn, { backgroundColor: colors.primary, marginTop: 32 }]}
-            onPress={() => router.replace('/login')}
-          >
-            <Text style={styles.btnText}>J'ai vérifié, me connecter</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.resendLink} onPress={handleRegister} disabled={loading}>
-            <Text style={[styles.resendText, { color: colors.text_secondary }]}>
-              {loading ? "Envoi en cours..." : "Renvoyer l'email"}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg_root }]}>
@@ -145,6 +115,47 @@ export default function RegisterScreen() {
               />
             </View>
 
+            {/* Age 13+ confirmation (store compliance) */}
+            <TouchableOpacity
+              testID="age-checkbox"
+              style={styles.checkRow}
+              onPress={() => setAgeConfirmed(!ageConfirmed)}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons
+                name={ageConfirmed ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                size={24}
+                color={ageConfirmed ? colors.primary : colors.text_secondary}
+              />
+              <Text style={[styles.checkText, { color: colors.text_primary }]}>
+                Je confirme avoir au moins 13 ans
+              </Text>
+            </TouchableOpacity>
+
+            {/* Terms acceptance */}
+            <TouchableOpacity
+              testID="terms-checkbox"
+              style={styles.checkRow}
+              onPress={() => setTermsAccepted(!termsAccepted)}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons
+                name={termsAccepted ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                size={24}
+                color={termsAccepted ? colors.primary : colors.text_secondary}
+              />
+              <Text style={[styles.checkText, { color: colors.text_primary }]}>
+                J'accepte les{' '}
+                <Text style={[styles.checkLink, { color: colors.primary }]} onPress={() => router.push('/terms')}>
+                  Conditions d'Utilisation
+                </Text>
+                {' '}et la{' '}
+                <Text style={[styles.checkLink, { color: colors.primary }]} onPress={() => router.push('/privacy')}>
+                  Politique de Confidentialité
+                </Text>
+              </Text>
+            </TouchableOpacity>
+
             <TouchableOpacity
               testID="register-submit-btn"
               style={[styles.btn, { backgroundColor: loading ? colors.primary + '80' : colors.primary }]}
@@ -185,11 +196,10 @@ const styles = StyleSheet.create({
   switchLink: { flexDirection: 'row', justifyContent: 'center', marginTop: 24 },
   switchText: { fontSize: 15 },
   switchTextBold: { fontSize: 15, fontWeight: '700' },
-  confirmContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
-  confirmTitle: { fontSize: 26, fontWeight: '800', marginTop: 24, textAlign: 'center' },
-  confirmText: { fontSize: 16, marginTop: 16, textAlign: 'center' },
-  confirmEmail: { fontSize: 16, fontWeight: '700', marginTop: 4 },
-  confirmHint: { fontSize: 13, marginTop: 16, textAlign: 'center', lineHeight: 20 },
-  resendLink: { marginTop: 16, padding: 12 },
-  resendText: { fontSize: 14, textDecorationLine: 'underline' },
+  checkRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingVertical: 4, minHeight: 44,
+  },
+  checkText: { fontSize: 14, flex: 1, lineHeight: 20 },
+  checkLink: { fontWeight: '700', textDecorationLine: 'underline' },
 });

@@ -10,6 +10,7 @@ import json
 import httpx
 import bcrypt
 import smtplib
+import secrets
 import asyncio
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -37,9 +38,6 @@ SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD', '')
 SMTP_FROM = os.environ.get('SMTP_FROM', SMTP_USER)
 APP_URL = os.environ.get('APP_URL', 'https://rate-reels.preview.emergentagent.com')
 EMAIL_VERIFICATION_ENABLED = bool(SMTP_USER and SMTP_PASSWORD)
-
-# YouTube API
-YOUTUBE_API_KEY = os.environ.get('YOUTUBE_API_KEY', '')
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -83,13 +81,24 @@ class UserRegister(BaseModel):
     email: str
     password: str
     name: str
+    age_confirmed: bool = False
 
 class UserLogin(BaseModel):
     email: str
     password: str
 
-class GoogleSessionRequest(BaseModel):
-    session_id: str
+class VerifyCodeRequest(BaseModel):
+    email: str
+    code: str
+
+class ResendCodeRequest(BaseModel):
+    email: str
+
+class ReportCreate(BaseModel):
+    content_type: str  # "rating" | "comment" | "user"
+    content_id: str
+    reason: str
+    details: Optional[str] = ""
 
 class VideoRateRequest(BaseModel):
     youtube_url: str
@@ -131,14 +140,16 @@ class ProfileUpdate(BaseModel):
     theme_preference: Optional[str] = None
 
 # --- Helpers ---
-async def send_verification_email(email: str, name: str, token: str):
-    """Send email verification link. Fails silently if SMTP not configured."""
+def generate_verification_code() -> str:
+    return f"{secrets.randbelow(1000000):06d}"
+
+async def send_verification_email(email: str, name: str, code: str):
+    """Send 6-digit verification code by email. Fails silently if SMTP not configured."""
     if not EMAIL_VERIFICATION_ENABLED:
         logger.warning("SMTP not configured — email verification skipped. Set SMTP_USER and SMTP_PASSWORD in .env")
         return
-    verify_url = f"{APP_URL}/verify-email?token={token}"
     msg = MIMEMultipart("alternative")
-    msg["Subject"] = "Confirmez votre adresse email — Social Cinema"
+    msg["Subject"] = f"{code} est votre code de vérification — Social Cinema"
     msg["From"] = SMTP_FROM
     msg["To"] = email
     html = f"""
@@ -146,11 +157,11 @@ async def send_verification_email(email: str, name: str, token: str):
 <div style="max-width:480px;margin:auto;background:#18181B;border-radius:16px;padding:32px">
   <h1 style="color:#E11D48;margin-top:0">🎬 Social Cinema</h1>
   <p>Bonjour <strong>{name}</strong>,</p>
-  <p>Merci de vous être inscrit ! Cliquez sur le bouton ci-dessous pour confirmer votre adresse email.</p>
-  <a href="{verify_url}" style="display:inline-block;background:#E11D48;color:#fff;padding:14px 28px;border-radius:100px;text-decoration:none;font-weight:700;margin:16px 0">
-    Confirmer mon email
-  </a>
-  <p style="color:#71717A;font-size:13px">Ce lien expire dans 24h. Si vous n'avez pas créé de compte, ignorez cet email.</p>
+  <p>Voici votre code de vérification. Saisissez-le dans l'application pour activer votre compte :</p>
+  <div style="background:#09090B;border:2px solid #E11D48;border-radius:12px;padding:20px;text-align:center;margin:20px 0">
+    <span style="font-size:36px;font-weight:800;letter-spacing:10px;color:#fff">{code}</span>
+  </div>
+  <p style="color:#71717A;font-size:13px">Ce code expire dans 15 minutes. Si vous n'avez pas créé de compte, ignorez cet email. Nous ne vous demanderons jamais ce code par téléphone ou par message.</p>
 </div></body></html>
 """
     msg.attach(MIMEText(html, "html"))
@@ -245,60 +256,86 @@ async def register(data: UserRegister, response: Response):
     # Check for profanity in name
     if contains_profanity(data.name):
         raise HTTPException(400, "Le pseudo contient des termes inappropriés. Veuillez en choisir un autre.")
-    
+
+    # Age verification (13+) required for App Store / Play Store compliance
+    if not data.age_confirmed:
+        raise HTTPException(400, "Vous devez confirmer avoir au moins 13 ans pour créer un compte.")
+
     existing = await db.users.find_one({"email": data.email})
     if existing:
-        # If existing but unverified, resend verification email
+        # If existing but unverified, resend a fresh code
         if existing.get("email_verified") is False:
-            token = existing.get("email_verification_token", uuid.uuid4().hex)
-            await send_verification_email(existing["email"], existing["name"], token)
+            code = generate_verification_code()
+            await db.users.update_one({"user_id": existing["user_id"]}, {"$set": {
+                "email_verification_code": code,
+                "email_verification_expires": datetime.now(timezone.utc) + timedelta(minutes=15),
+                "verification_attempts": 0,
+                "last_code_sent_at": datetime.now(timezone.utc),
+            }})
+            await send_verification_email(existing["email"], existing["name"], code)
             return {
                 "requires_verification": True, 
                 "email": data.email,
-                "message": "Un email de confirmation a été renvoyé."
+                "message": "Un nouveau code de vérification a été envoyé."
             }
         raise HTTPException(400, "Email already registered")
 
     password_hash = bcrypt.hashpw(data.password.encode(), bcrypt.gensalt()).decode()
     user_id = f"user_{uuid.uuid4().hex[:12]}"
-    verification_token = uuid.uuid4().hex
+    code = generate_verification_code()
 
     await db.users.insert_one({
         "user_id": user_id, "email": data.email, "name": data.name,
         "picture": "", "password_hash": password_hash, "bio": "",
         "theme_preference": "dark", "created_at": datetime.now(timezone.utc),
         "email_verified": False,
-        "email_verification_token": verification_token,
-        "email_verification_expires": datetime.now(timezone.utc) + timedelta(hours=24),
+        "email_verification_code": code,
+        "email_verification_expires": datetime.now(timezone.utc) + timedelta(minutes=15),
+        "verification_attempts": 0,
+        "last_code_sent_at": datetime.now(timezone.utc),
+        "age_confirmed": True,
+        "terms_accepted_at": datetime.now(timezone.utc),
     })
 
-    # Send verification email
-    await send_verification_email(data.email, data.name, verification_token)
+    # Send verification code
+    await send_verification_email(data.email, data.name, code)
     
     return {
         "requires_verification": True, 
         "email": data.email,
-        "message": "Un email de confirmation vous a été envoyé. Vérifiez votre boîte mail."
+        "message": "Un code de vérification vous a été envoyé par email."
     }
 
-@api_router.get("/auth/verify-email")
-async def verify_email(token: str, response: Response):
-    user = await db.users.find_one({"email_verification_token": token}, {"_id": 0})
-    if not user:
-        raise HTTPException(400, "Lien de vérification invalide ou déjà utilisé.")
-    expires = user.get("email_verification_expires")
-    if expires:
-        if isinstance(expires, str):
-            expires = datetime.fromisoformat(expires)
-        if expires.tzinfo is None:
-            expires = expires.replace(tzinfo=timezone.utc)
-        if expires < datetime.now(timezone.utc):
-            raise HTTPException(400, "Ce lien a expiré. Réinscrivez-vous pour recevoir un nouveau lien.")
+def _parse_utc(dt):
+    if isinstance(dt, str):
+        dt = datetime.fromisoformat(dt)
+    if dt and dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
 
-    await db.users.update_one(
-        {"user_id": user["user_id"]},
-        {"$set": {"email_verified": True, "email_verification_token": None}}
-    )
+@api_router.post("/auth/verify-code")
+async def verify_code(data: VerifyCodeRequest, response: Response):
+    user = await db.users.find_one({"email": data.email}, {"_id": 0})
+    if not user:
+        raise HTTPException(404, "Aucun compte trouvé pour cet email.")
+
+    if not user.get("email_verified", False):
+        attempts = user.get("verification_attempts", 0)
+        if attempts >= 5:
+            raise HTTPException(429, "Trop de tentatives. Demandez un nouveau code.")
+
+        stored_code = user.get("email_verification_code")
+        expires = _parse_utc(user.get("email_verification_expires"))
+        if not stored_code or stored_code != data.code.strip():
+            await db.users.update_one({"user_id": user["user_id"]}, {"$inc": {"verification_attempts": 1}})
+            raise HTTPException(400, "Code incorrect. Vérifiez le code reçu par email.")
+        if expires and expires < datetime.now(timezone.utc):
+            raise HTTPException(400, "Ce code a expiré. Demandez un nouveau code.")
+
+        await db.users.update_one(
+            {"user_id": user["user_id"]},
+            {"$set": {"email_verified": True, "email_verification_code": None, "verification_attempts": 0}}
+        )
 
     # Create session so the user lands directly in the app
     session_token = f"session_{uuid.uuid4().hex}"
@@ -313,6 +350,28 @@ async def verify_email(token: str, response: Response):
             "user_id": user["user_id"], "email": user["email"],
             "name": user["name"], "picture": user.get("picture", "")}
 
+@api_router.post("/auth/resend-code")
+async def resend_code(data: ResendCodeRequest):
+    user = await db.users.find_one({"email": data.email}, {"_id": 0})
+    if not user:
+        raise HTTPException(404, "Aucun compte trouvé pour cet email.")
+    if user.get("email_verified", False):
+        raise HTTPException(400, "Cet email est déjà vérifié. Connectez-vous.")
+
+    last_sent = _parse_utc(user.get("last_code_sent_at"))
+    if last_sent and (datetime.now(timezone.utc) - last_sent).total_seconds() < 30:
+        raise HTTPException(429, "Veuillez patienter 30 secondes avant de renvoyer un code.")
+
+    code = generate_verification_code()
+    await db.users.update_one({"user_id": user["user_id"]}, {"$set": {
+        "email_verification_code": code,
+        "email_verification_expires": datetime.now(timezone.utc) + timedelta(minutes=15),
+        "verification_attempts": 0,
+        "last_code_sent_at": datetime.now(timezone.utc),
+    }})
+    await send_verification_email(user["email"], user["name"], code)
+    return {"success": True, "message": "Un nouveau code a été envoyé."}
+
 @api_router.post("/auth/login")
 async def login(data: UserLogin, response: Response):
     user = await db.users.find_one({"email": data.email}, {"_id": 0})
@@ -321,18 +380,19 @@ async def login(data: UserLogin, response: Response):
     if not bcrypt.checkpw(data.password.encode(), user["password_hash"].encode()):
         raise HTTPException(401, "Identifiants invalides")
 
-    # Block login if email not verified
+    # Block login if email not verified — send a fresh code
     if not user.get("email_verified", False):
-        # Resend verification email
-        token = user.get("email_verification_token") or uuid.uuid4().hex
+        code = generate_verification_code()
         await db.users.update_one(
             {"user_id": user["user_id"]},
             {"$set": {
-                "email_verification_token": token,
-                "email_verification_expires": datetime.now(timezone.utc) + timedelta(hours=24)
+                "email_verification_code": code,
+                "email_verification_expires": datetime.now(timezone.utc) + timedelta(minutes=15),
+                "verification_attempts": 0,
+                "last_code_sent_at": datetime.now(timezone.utc),
             }}
         )
-        await send_verification_email(user["email"], user["name"], token)
+        await send_verification_email(user["email"], user["name"], code)
         raise HTTPException(403, "EMAIL_NOT_VERIFIED")
 
     session_token = f"session_{uuid.uuid4().hex}"
@@ -345,47 +405,6 @@ async def login(data: UserLogin, response: Response):
                         secure=True, httponly=True, samesite="none", max_age=7*24*60*60)
     return {"user_id": user["user_id"], "email": user["email"], "name": user["name"],
             "picture": user.get("picture", ""), "session_token": session_token}
-
-@api_router.post("/auth/google-session")
-async def google_session(data: GoogleSessionRequest, response: Response):
-    async with httpx.AsyncClient() as http:
-        resp = await http.get(
-            "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
-            headers={"X-Session-ID": data.session_id}, timeout=10
-        )
-    if resp.status_code != 200:
-        raise HTTPException(401, "Invalid Google session")
-    
-    google_data = resp.json()
-    existing = await db.users.find_one({"email": google_data["email"]}, {"_id": 0})
-    
-    if existing:
-        user_id = existing["user_id"]
-        await db.users.update_one({"user_id": user_id}, {"$set": {
-            "name": google_data.get("name", existing["name"]),
-            "picture": google_data.get("picture", existing.get("picture", ""))
-        }})
-    else:
-        user_id = f"user_{uuid.uuid4().hex[:12]}"
-        await db.users.insert_one({
-            "user_id": user_id, "email": google_data["email"],
-            "name": google_data.get("name", ""), "picture": google_data.get("picture", ""),
-            "password_hash": "", "bio": "", "theme_preference": "dark",
-            "created_at": datetime.now(timezone.utc)
-        })
-    
-    session_token = google_data.get("session_token", f"session_{uuid.uuid4().hex}")
-    await db.user_sessions.insert_one({
-        "session_token": session_token, "user_id": user_id,
-        "expires_at": datetime.now(timezone.utc) + timedelta(days=7),
-        "created_at": datetime.now(timezone.utc)
-    })
-    
-    response.set_cookie(key="session_token", value=session_token, path="/",
-                        secure=True, httponly=True, samesite="none", max_age=7*24*60*60)
-    return {"user_id": user_id, "email": google_data["email"],
-            "name": google_data.get("name", ""), "picture": google_data.get("picture", ""),
-            "session_token": session_token}
 
 @api_router.get("/auth/me")
 async def get_me(request: Request):
@@ -428,12 +447,92 @@ async def delete_account(request: Request, response: Response):
     logger.info(f"Account deleted: {user_id}")
     return {"message": "Account deleted successfully"}
 
+async def get_blocked_ids(user_id: str) -> list:
+    docs = await db.blocked_users.find({"user_id": user_id}, {"_id": 0, "blocked_user_id": 1}).to_list(500)
+    return [d["blocked_user_id"] for d in docs]
+
+# --- Moderation (UGC — App Store Guideline 1.2) ---
+@api_router.post("/reports")
+async def create_report(data: ReportCreate, request: Request):
+    """Report inappropriate content (rating, comment) or a user. Reviewed within 24h."""
+    user = await get_current_user(request)
+    if data.content_type not in ("rating", "comment", "user"):
+        raise HTTPException(400, "Type de contenu invalide")
+    if not data.reason.strip():
+        raise HTTPException(400, "Veuillez indiquer une raison")
+
+    # Resolve the author of the reported content
+    reported_user_id = None
+    if data.content_type == "rating":
+        doc = await db.video_ratings.find_one({"rating_id": data.content_id}, {"_id": 0, "user_id": 1})
+        reported_user_id = doc["user_id"] if doc else None
+    elif data.content_type == "comment":
+        doc = await db.comments.find_one({"comment_id": data.content_id}, {"_id": 0, "user_id": 1})
+        reported_user_id = doc["user_id"] if doc else None
+    else:
+        reported_user_id = data.content_id
+
+    report_id = f"report_{uuid.uuid4().hex[:12]}"
+    await db.reports.insert_one({
+        "report_id": report_id,
+        "reporter_id": user["user_id"],
+        "content_type": data.content_type,
+        "content_id": data.content_id,
+        "reported_user_id": reported_user_id,
+        "reason": data.reason.strip(),
+        "details": (data.details or "").strip(),
+        "status": "pending",
+        "created_at": datetime.now(timezone.utc),
+    })
+    logger.info(f"Content reported: {data.content_type}/{data.content_id} by {user['user_id']}")
+    return {"success": True, "report_id": report_id,
+            "message": "Signalement envoyé. Notre équipe examinera ce contenu sous 24h."}
+
+@api_router.get("/users/me/blocked")
+async def get_blocked_users(request: Request):
+    user = await get_current_user(request)
+    docs = await db.blocked_users.find({"user_id": user["user_id"]}, {"_id": 0}).to_list(500)
+    result = []
+    for d in docs:
+        u = await db.users.find_one({"user_id": d["blocked_user_id"]}, {"_id": 0, "user_id": 1, "name": 1, "picture": 1})
+        if u:
+            result.append(u)
+    return result
+
+@api_router.post("/users/{user_id}/block")
+async def block_user(user_id: str, request: Request):
+    user = await get_current_user(request)
+    if user_id == user["user_id"]:
+        raise HTTPException(400, "Vous ne pouvez pas vous bloquer vous-même")
+    target = await db.users.find_one({"user_id": user_id}, {"_id": 0, "user_id": 1})
+    if not target:
+        raise HTTPException(404, "Utilisateur introuvable")
+    existing = await db.blocked_users.find_one({"user_id": user["user_id"], "blocked_user_id": user_id})
+    if not existing:
+        await db.blocked_users.insert_one({
+            "user_id": user["user_id"], "blocked_user_id": user_id,
+            "created_at": datetime.now(timezone.utc),
+        })
+    # Remove friendship in both directions
+    await db.friendships.delete_many({"$or": [
+        {"user_id": user["user_id"], "friend_id": user_id},
+        {"user_id": user_id, "friend_id": user["user_id"]},
+    ]})
+    return {"success": True, "message": "Utilisateur bloqué. Son contenu ne vous sera plus affiché."}
+
+@api_router.delete("/users/{user_id}/block")
+async def unblock_user(user_id: str, request: Request):
+    user = await get_current_user(request)
+    await db.blocked_users.delete_one({"user_id": user["user_id"], "blocked_user_id": user_id})
+    return {"success": True, "message": "Utilisateur débloqué."}
+
 # --- Users ---
 @api_router.get("/users/search")
 async def search_users(q: str, request: Request):
     user = await get_current_user(request)
+    blocked = await get_blocked_ids(user["user_id"])
     users = await db.users.find(
-        {"name": {"$regex": q, "$options": "i"}, "user_id": {"$ne": user["user_id"]}},
+        {"name": {"$regex": q, "$options": "i"}, "user_id": {"$ne": user["user_id"], "$nin": blocked}},
         {"_id": 0, "password_hash": 0}
     ).limit(20).to_list(20)
     return users
@@ -643,155 +742,6 @@ async def fetch_video_info(url: str, request: Request):
         }
     except Exception as e:
         return {"success": False, "error": str(e)}
-
-# --- YouTube Search API ---
-@api_router.get("/youtube/search")
-async def youtube_search(q: str, request: Request, max_results: int = 10):
-    """Search YouTube videos using the YouTube Data API"""
-    await get_current_user(request)
-    
-    if not YOUTUBE_API_KEY:
-        raise HTTPException(500, "YouTube API key not configured")
-    
-    if not q or len(q) < 2:
-        return []
-    
-    try:
-        async with httpx.AsyncClient() as http:
-            resp = await http.get(
-                "https://www.googleapis.com/youtube/v3/search",
-                params={
-                    "part": "snippet",
-                    "q": q,
-                    "type": "video",
-                    "maxResults": min(max_results, 25),
-                    "key": YOUTUBE_API_KEY
-                },
-                timeout=10
-            )
-            
-            if resp.status_code != 200:
-                logger.error(f"YouTube API error: {resp.status_code} - {resp.text}")
-                raise HTTPException(resp.status_code, "YouTube API error")
-            
-            data = resp.json()
-            videos = []
-            
-            for item in data.get("items", []):
-                video_id = item["id"]["videoId"]
-                snippet = item["snippet"]
-                videos.append({
-                    "youtube_id": video_id,
-                    "title": snippet["title"],
-                    "thumbnail": snippet["thumbnails"].get("high", snippet["thumbnails"].get("medium", snippet["thumbnails"]["default"]))["url"],
-                    "channel_name": snippet["channelTitle"],
-                    "description": snippet.get("description", "")[:200],
-                    "published_at": snippet.get("publishedAt", "")
-                })
-            
-            return videos
-    except httpx.TimeoutException:
-        raise HTTPException(504, "YouTube API timeout")
-    except Exception as e:
-        logger.error(f"YouTube search error: {e}")
-        raise HTTPException(500, str(e))
-
-@api_router.get("/youtube/video/{video_id}")
-async def youtube_video_details(video_id: str, request: Request):
-    """Get detailed info about a YouTube video"""
-    await get_current_user(request)
-    
-    if not YOUTUBE_API_KEY:
-        raise HTTPException(500, "YouTube API key not configured")
-    
-    try:
-        async with httpx.AsyncClient() as http:
-            resp = await http.get(
-                "https://www.googleapis.com/youtube/v3/videos",
-                params={
-                    "part": "snippet,statistics,contentDetails",
-                    "id": video_id,
-                    "key": YOUTUBE_API_KEY
-                },
-                timeout=10
-            )
-            
-            if resp.status_code != 200:
-                raise HTTPException(resp.status_code, "YouTube API error")
-            
-            data = resp.json()
-            items = data.get("items", [])
-            
-            if not items:
-                raise HTTPException(404, "Video not found")
-            
-            item = items[0]
-            snippet = item["snippet"]
-            stats = item.get("statistics", {})
-            
-            return {
-                "youtube_id": video_id,
-                "title": snippet["title"],
-                "description": snippet.get("description", ""),
-                "thumbnail": snippet["thumbnails"].get("high", snippet["thumbnails"].get("medium", snippet["thumbnails"]["default"]))["url"],
-                "channel_name": snippet["channelTitle"],
-                "channel_id": snippet["channelId"],
-                "published_at": snippet.get("publishedAt", ""),
-                "view_count": int(stats.get("viewCount", 0)),
-                "like_count": int(stats.get("likeCount", 0)),
-                "comment_count": int(stats.get("commentCount", 0)),
-                "duration": item.get("contentDetails", {}).get("duration", "")
-            }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"YouTube video details error: {e}")
-        raise HTTPException(500, str(e))
-
-@api_router.get("/youtube/trending")
-async def youtube_trending(request: Request, region_code: str = "FR", max_results: int = 10):
-    """Get trending videos on YouTube"""
-    await get_current_user(request)
-    
-    if not YOUTUBE_API_KEY:
-        raise HTTPException(500, "YouTube API key not configured")
-    
-    try:
-        async with httpx.AsyncClient() as http:
-            resp = await http.get(
-                "https://www.googleapis.com/youtube/v3/videos",
-                params={
-                    "part": "snippet,statistics",
-                    "chart": "mostPopular",
-                    "regionCode": region_code,
-                    "maxResults": min(max_results, 25),
-                    "key": YOUTUBE_API_KEY
-                },
-                timeout=10
-            )
-            
-            if resp.status_code != 200:
-                raise HTTPException(resp.status_code, "YouTube API error")
-            
-            data = resp.json()
-            videos = []
-            
-            for item in data.get("items", []):
-                snippet = item["snippet"]
-                stats = item.get("statistics", {})
-                videos.append({
-                    "youtube_id": item["id"],
-                    "title": snippet["title"],
-                    "thumbnail": snippet["thumbnails"].get("high", snippet["thumbnails"].get("medium", snippet["thumbnails"]["default"]))["url"],
-                    "channel_name": snippet["channelTitle"],
-                    "view_count": int(stats.get("viewCount", 0)),
-                    "like_count": int(stats.get("likeCount", 0))
-                })
-            
-            return videos
-    except Exception as e:
-        logger.error(f"YouTube trending error: {e}")
-        raise HTTPException(500, str(e))
 
 @api_router.get("/videos/my-rating/{youtube_id}")
 async def get_my_rating_for_video(youtube_id: str, request: Request):
@@ -1129,6 +1079,10 @@ async def get_feed(request: Request, skip: int = 0, limit: int = 20):
     friend_ids = [user["user_id"]]
     for f in friendships:
         friend_ids.append(f["friend_id"] if f["user_id"] == user["user_id"] else f["user_id"])
+
+    # Exclude blocked users
+    blocked = await get_blocked_ids(user["user_id"])
+    friend_ids = [fid for fid in friend_ids if fid not in blocked]
     
     # Aggregate to get unique videos by youtube_id
     # Shows the most recent rating for each video, with average rating and rating count
@@ -1185,10 +1139,12 @@ async def get_feed(request: Request, skip: int = 0, limit: int = 20):
 @api_router.get("/videos/discover")
 async def discover_videos(request: Request, skip: int = 0, limit: int = 20):
     """Discover unique videos from all users (no duplicates)"""
-    await get_current_user(request)
+    user = await get_current_user(request)
+    blocked = await get_blocked_ids(user["user_id"])
     
     # Aggregate to get unique videos by youtube_id
     pipeline = [
+        {"$match": {"user_id": {"$nin": blocked}}},
         {"$sort": {"created_at": -1}},
         {"$group": {
             "_id": "$youtube_id",
@@ -1310,7 +1266,8 @@ async def get_user_videos(user_id: str, request: Request):
 
 @api_router.get("/videos/{rating_id}")
 async def get_video_detail(rating_id: str, request: Request):
-    await get_current_user(request)
+    current = await get_current_user(request)
+    blocked = await get_blocked_ids(current["user_id"])
     rating = await db.video_ratings.find_one({"rating_id": rating_id}, {"_id": 0})
     if not rating:
         raise HTTPException(404, "Video rating not found")
@@ -1319,7 +1276,9 @@ async def get_video_detail(rating_id: str, request: Request):
     if u:
         rating["user"] = u
     
-    comments = await db.comments.find({"rating_id": rating_id}, {"_id": 0}).sort("created_at", -1).to_list(50)
+    comments = await db.comments.find(
+        {"rating_id": rating_id, "user_id": {"$nin": blocked}}, {"_id": 0}
+    ).sort("created_at", -1).to_list(50)
     for c in comments:
         cu = await db.users.find_one({"user_id": c["user_id"]}, {"_id": 0, "password_hash": 0})
         if cu:
