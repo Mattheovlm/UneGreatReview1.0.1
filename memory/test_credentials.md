@@ -16,4 +16,4 @@
 - Connexion avec email non vérifié → 403 EMAIL_NOT_VERIFIED + nouveau code envoyé.
 
 ## SMTP (Gmail — fonctionnel)
-- unegreatreview@gmail.com / hpvs mxqz pcym dozr
+- Compte: unegreatreview@gmail.com (mot de passe d'application configuré dans /app/backend/.env — SMTP_PASSWORD)

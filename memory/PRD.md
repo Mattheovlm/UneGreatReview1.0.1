@@ -127,3 +127,10 @@ Letterboxd pour YouTube - Plateforme sociale de curation de vidéos YouTube.
 - **FEATURE (Legal/RGPD)**: Case 13+ obligatoire à l'inscription (age_confirmed backend), case acceptation CGU/Confidentialité avec liens, popup consentement RGPD au premier lancement (ConsentModal, AsyncStorage gdpr_consent_v1), divulgation IA (OpenAI) dans privacy.tsx, section modération/tolérance zéro dans terms.tsx.
 - **SUPPRIMÉ**: Onglets Recherche/Tendances YouTube (API key 401 — endpoints retirés). Page Ajouter = lien YouTube uniquement (oEmbed, sans clé). Lecture via player YouTube embarqué officiel (inchangé).
 - Tests: iteration_4.json — 17/17 backend, 100% frontend.
+
+## Mentions Légales + Export RGPD + Préparation déploiement (Juin 2026)
+- **FEATURE**: Page Mentions Légales (`/app/frontend/app/legal.tsx`) — éditeur (LCEN art. 6-III-2, personne physique anonyme), contact, hébergeur (Emergent), propriété intellectuelle (player YouTube officiel), loi française. Lien dans Paramètres > LÉGAL.
+- **FEATURE**: Export RGPD (Article 20) — GET /api/users/me/export (profil, notes, commentaires, playlists, amis, likes, bloqués, signalements, notifications). Bouton "Exporter mes données (RGPD)" dans Paramètres : téléchargement JSON sur web, partage natif (Share) sur mobile.
+- **DEPLOYMENT FIXES** (health check): splash app.json → splash-image.png existant ; .gitignore n'exclut plus les .env ; JWT_SECRET obligatoire (fail-fast, plus de fallback) ; mot de passe SMTP retiré de memory/test_credentials.md (+ gitignoré) ; APP_URL inutilisé supprimé ; package-lock.json supprimé (yarn canonique) ; permissions CAMERA/STORAGE et descriptions iOS inutilisées retirées de app.json (aucun code caméra/galerie).
+- **INCIDENT résolu**: troncature de server.py (course d'écritures parallèles sed/search_replace) — queue du fichier restaurée depuis git HEAD.
+- Statut health check final: WARN uniquement (N+1 queries à optimiser plus tard, URL publique de politique de confidentialité à fournir dans les fiches store).

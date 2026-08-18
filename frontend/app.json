@@ -12,9 +12,6 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.socialcinema.app",
       "infoPlist": {
-        "NSCameraUsageDescription": "Prendre une photo de profil",
-        "NSPhotoLibraryUsageDescription": "Choisir une photo de profil",
-        "NSUserTrackingUsageDescription": "Améliorer votre expérience avec des recommandations personnalisées",
         "ITSAppUsesNonExemptEncryption": false
       },
       "config": {
@@ -28,11 +25,7 @@
         "backgroundColor": "#000"
       },
       "edgeToEdgeEnabled": true,
-      "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
-      ]
+      "permissions": []
     },
     "web": {
       "bundler": "metro",
@@ -44,7 +37,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/splash-image.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#000"

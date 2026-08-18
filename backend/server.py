@@ -28,7 +28,9 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
-JWT_SECRET = os.environ.get('JWT_SECRET', 'social-cinema-secret')
+JWT_SECRET = os.environ.get('JWT_SECRET')
+if not JWT_SECRET:
+    raise RuntimeError("JWT_SECRET environment variable is required")
 
 # Email config (set these in your .env)
 SMTP_HOST = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
@@ -36,7 +38,6 @@ SMTP_PORT = int(os.environ.get('SMTP_PORT', '587'))
 SMTP_USER = os.environ.get('SMTP_USER', '')
 SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD', '')
 SMTP_FROM = os.environ.get('SMTP_FROM', SMTP_USER)
-APP_URL = os.environ.get('APP_URL', 'https://rate-reels.preview.emergentagent.com')
 EMAIL_VERIFICATION_ENABLED = bool(SMTP_USER and SMTP_PASSWORD)
 
 app = FastAPI()
@@ -450,6 +451,45 @@ async def delete_account(request: Request, response: Response):
 async def get_blocked_ids(user_id: str) -> list:
     docs = await db.blocked_users.find({"user_id": user_id}, {"_id": 0, "blocked_user_id": 1}).to_list(500)
     return [d["blocked_user_id"] for d in docs]
+
+# --- GDPR Data Export (Article 20 — right to data portability) ---
+@api_router.get("/users/me/export")
+async def export_my_data(request: Request):
+    user = await get_current_user(request)
+    uid = user["user_id"]
+
+    profile = await db.users.find_one(
+        {"user_id": uid},
+        {"_id": 0, "password_hash": 0, "email_verification_code": 0, "verification_attempts": 0}
+    )
+    ratings = await db.video_ratings.find({"user_id": uid}, {"_id": 0}).to_list(2000)
+    comments = await db.comments.find({"user_id": uid}, {"_id": 0}).to_list(2000)
+    playlists = await db.playlists.find({"user_id": uid}, {"_id": 0}).to_list(500)
+    friendships = await db.friendships.find(
+        {"$or": [{"user_id": uid}, {"friend_id": uid}]}, {"_id": 0}
+    ).to_list(1000)
+    likes = await db.rating_likes.find({"user_id": uid}, {"_id": 0}).to_list(2000)
+    blocked = await db.blocked_users.find({"user_id": uid}, {"_id": 0}).to_list(500)
+    reports = await db.reports.find({"reporter_id": uid}, {"_id": 0}).to_list(500)
+    notifications = await db.notifications.find({"user_id": uid}, {"_id": 0}).to_list(1000)
+
+    return {
+        "export_info": {
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "app": "Social Cinema",
+            "legal_basis": "RGPD Article 20 — Droit à la portabilité des données",
+            "description": "Copie intégrale des données personnelles associées à votre compte.",
+        },
+        "profile": profile,
+        "ratings": ratings,
+        "comments": comments,
+        "playlists": playlists,
+        "friendships": friendships,
+        "likes": likes,
+        "blocked_users": blocked,
+        "reports_submitted": reports,
+        "notifications": notifications,
+    }
 
 # --- Moderation (UGC — App Store Guideline 1.2) ---
 @api_router.post("/reports")

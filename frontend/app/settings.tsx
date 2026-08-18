@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Switch, ScrollView, Alert, Linking, Platform, Image } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Switch, ScrollView, Alert, Linking, Platform, Image, Share } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../src/contexts/AuthContext';
@@ -14,7 +14,36 @@ export default function SettingsScreen() {
   const { user, logout, token } = useAuth();
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [blockedUsers, setBlockedUsers] = useState<any[]>([]);
+
+  const handleExportData = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const data = await apiCall('/api/users/me/export');
+      const json = JSON.stringify(data, null, 2);
+      if (Platform.OS === 'web' && typeof document !== 'undefined') {
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `social-cinema-export-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } else {
+        await Share.share({
+          title: 'Export de mes données — Social Cinema',
+          message: json,
+        });
+      }
+    } catch (e: any) {
+      Alert.alert('Erreur', e.message || "Impossible d'exporter vos données");
+    }
+    setExporting(false);
+  };
 
   useEffect(() => {
     apiCall('/api/users/me/blocked')
@@ -185,6 +214,31 @@ export default function SettingsScreen() {
             <View style={styles.settingInfo}>
               <MaterialCommunityIcons name="file-document-outline" size={22} color={colors.text_secondary} />
               <Text style={[styles.settingText, { color: colors.text_primary }]}>Conditions d'Utilisation</Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={22} color={colors.text_secondary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            testID="legal-notice-btn"
+            style={styles.settingRow}
+            onPress={() => router.push('/legal')}
+          >
+            <View style={styles.settingInfo}>
+              <MaterialCommunityIcons name="scale-balance" size={22} color={colors.text_secondary} />
+              <Text style={[styles.settingText, { color: colors.text_primary }]}>Mentions Légales</Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={22} color={colors.text_secondary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            testID="export-data-btn"
+            style={styles.settingRow}
+            onPress={handleExportData}
+            disabled={exporting}
+          >
+            <View style={styles.settingInfo}>
+              <MaterialCommunityIcons name="database-export-outline" size={22} color={colors.text_secondary} />
+              <Text style={[styles.settingText, { color: colors.text_primary }]}>
+                {exporting ? 'Export en cours...' : 'Exporter mes données (RGPD)'}
+              </Text>
             </View>
             <MaterialCommunityIcons name="chevron-right" size={22} color={colors.text_secondary} />
           </TouchableOpacity>
