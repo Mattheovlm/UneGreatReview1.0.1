@@ -1805,6 +1805,63 @@ async def public_privacy_policy():
     """Public hosted privacy policy (required by App Store Connect / Play Console listings)."""
     return HTMLResponse(content=PRIVACY_POLICY_HTML)
 
+SUPPORT_PAGE_HTML = """<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assistance — UneGreatReview</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+         background: #09090B; color: #d4d4d8; margin: 0; padding: 0; line-height: 1.7; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 40px 24px 80px; }
+  h1 { color: #fff; font-size: 28px; margin-bottom: 4px; }
+  h2 { color: #fff; font-size: 19px; margin-top: 36px; }
+  .brand { color: #E11D48; font-weight: 800; font-size: 15px; letter-spacing: 1px; text-transform: uppercase; }
+  a { color: #E11D48; }
+  .card { background: #18181B; border-radius: 14px; padding: 20px 24px; margin-top: 16px; }
+  footer { margin-top: 48px; color: #71717A; font-size: 13px; border-top: 1px solid #27272a; padding-top: 20px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">🎬 UneGreatReview</div>
+  <h1>Assistance</h1>
+  <p>Une question, un problème ou une suggestion concernant l'application UneGreatReview ? Nous sommes là pour vous aider.</p>
+
+  <div class="card">
+    <h2 style="margin-top:0">📧 Nous contacter</h2>
+    <p>Envoyez-nous un email, nous répondons généralement sous 24 à 48 heures :<br>
+    <a href="mailto:unegreatreview@gmail.com">unegreatreview@gmail.com</a></p>
+  </div>
+
+  <h2>Questions fréquentes</h2>
+  <div class="card">
+    <p><strong>Je n'ai pas reçu mon code de vérification.</strong><br>
+    Vérifiez votre dossier spam/courrier indésirable. Vous pouvez demander un nouveau code depuis l'écran de vérification (bouton « Renvoyer le code »).</p>
+    <p><strong>Comment signaler un contenu inapproprié ?</strong><br>
+    Touchez l'icône drapeau 🚩 sur la note ou le commentaire concerné. Tout signalement est examiné sous 24 heures.</p>
+    <p><strong>Comment supprimer mon compte et mes données ?</strong><br>
+    Dans l'application : Profil → Paramètres → Supprimer mon compte. La suppression est définitive.</p>
+    <p><strong>Comment exporter mes données (RGPD) ?</strong><br>
+    Profil → Paramètres → Exporter mes données (RGPD).</p>
+  </div>
+
+  <h2>Liens utiles</h2>
+  <p>
+    <a href="/api/legal/privacy">Politique de confidentialité</a>
+  </p>
+
+  <footer>© 2026 UneGreatReview — Tous droits réservés.</footer>
+</div>
+</body>
+</html>"""
+
+@api_router.get("/legal/support", response_class=HTMLResponse)
+async def public_support_page():
+    """Public support page (required Support URL for App Store Connect / Play Console)."""
+    return HTMLResponse(content=SUPPORT_PAGE_HTML)
+
 # --- Health ---
 @api_router.get("/health")
 async def health():
