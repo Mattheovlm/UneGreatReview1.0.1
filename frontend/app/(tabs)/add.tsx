@@ -9,10 +9,23 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import { apiCall } from '../../src/utils/api';
 import StarRating from '../../src/components/StarRating';
+import AddToPlaylistModal from '../../src/components/AddToPlaylistModal';
 
 export default function AddVideoScreen() {
   const { colors } = useTheme();
   const router = useRouter();
+
+  // Mode: search by name/author (default) or paste URL
+  const [mode, setMode] = useState<'search' | 'url'>('search');
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+
+  // Playlist (favoris) modal
+  const [playlistModal, setPlaylistModal] = useState(false);
 
   // URL state
   const [url, setUrl] = useState('');
@@ -33,6 +46,7 @@ export default function AddVideoScreen() {
   
   // Debounce timer ref
   const debounceTimer = useRef<any>(null);
+  const searchTimer = useRef<any>(null);
 
   const extractYoutubeId = (ytUrl: string) => {
     const patterns = [
@@ -116,6 +130,54 @@ export default function AddVideoScreen() {
     };
   }, [url, fetchVideoInfo]);
 
+  // Debounced YouTube search (by video name or channel)
+  useEffect(() => {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    const q = searchQuery.trim();
+    if (mode !== 'search' || q.length < 3) {
+      setSearchResults([]);
+      setSearchError(null);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    searchTimer.current = setTimeout(async () => {
+      try {
+        const res = await apiCall(`/api/youtube/search?q=${encodeURIComponent(q)}`);
+        const results = res.results || [];
+        setSearchResults(results);
+        setSearchError(results.length === 0 ? 'Aucune vidéo trouvée' : null);
+      } catch (e: any) {
+        setSearchResults([]);
+        setSearchError(e.message || 'Erreur de recherche');
+      }
+      setSearching(false);
+    }, 700);
+    return () => {
+      if (searchTimer.current) clearTimeout(searchTimer.current);
+    };
+  }, [searchQuery, mode]);
+
+  const selectFromSearch = (item: any) => {
+    setPreview({
+      youtube_id: item.youtube_id,
+      title: item.title,
+      thumbnail: item.thumbnail,
+      channel_name: item.channel_name,
+    });
+    setSearchResults([]);
+    setSearchError(null);
+    fadeAnim.setValue(1);
+    slideAnim.setValue(0);
+  };
+
+  const clearSelection = () => {
+    setPreview(null);
+    setRating(0);
+    setComment('');
+    if (mode === 'url') setUrl('');
+  };
+
   const handleSubmit = async () => {
     const videoToSubmit = preview;
     if (!videoToSubmit || rating === 0) {
@@ -163,10 +225,97 @@ export default function AddVideoScreen() {
           <View style={styles.header}>
             <Text style={[styles.headerTitle, { color: colors.text_primary }]}>Noter une vidéo</Text>
             <Text style={[styles.headerSub, { color: colors.text_secondary }]}>
-              Collez un lien YouTube pour noter la vidéo
+              Recherchez une vidéo ou collez un lien YouTube
             </Text>
           </View>
 
+          {/* Mode tabs */}
+          <View style={[styles.tabsRow, { backgroundColor: colors.bg_card }]}>
+            <TouchableOpacity
+              testID="tab-search"
+              style={[styles.tabBtn, mode === 'search' && { backgroundColor: colors.primary }]}
+              onPress={() => setMode('search')}
+            >
+              <MaterialCommunityIcons name="magnify" size={18} color={mode === 'search' ? '#fff' : colors.text_secondary} />
+              <Text style={[styles.tabText, { color: mode === 'search' ? '#fff' : colors.text_secondary }]}>Recherche</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              testID="tab-url"
+              style={[styles.tabBtn, mode === 'url' && { backgroundColor: colors.primary }]}
+              onPress={() => setMode('url')}
+            >
+              <MaterialCommunityIcons name="link-variant" size={18} color={mode === 'url' ? '#fff' : colors.text_secondary} />
+              <Text style={[styles.tabText, { color: mode === 'url' ? '#fff' : colors.text_secondary }]}>Lien</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Search mode */}
+          {mode === 'search' && (
+            <>
+              <View style={[styles.urlRow, { backgroundColor: colors.bg_card, borderColor: colors.border }]}>
+                <MaterialCommunityIcons name="magnify" size={24} color={colors.primary} />
+                <TextInput
+                  testID="youtube-search-input"
+                  style={[styles.urlInput, { color: colors.text_primary }]}
+                  placeholder="Nom de la vidéo ou de la chaîne..."
+                  placeholderTextColor={colors.text_secondary}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="search"
+                />
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => { setSearchQuery(''); setSearchResults([]); setSearchError(null); }}>
+                    <MaterialCommunityIcons name="close-circle" size={20} color={colors.text_secondary} />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {searching && (
+                <View style={[styles.fetchingContainer, { backgroundColor: colors.bg_card }]}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={[styles.fetchingText, { color: colors.text_secondary }]}>Recherche sur YouTube...</Text>
+                </View>
+              )}
+
+              {searchError && !searching && (
+                <View style={[styles.errorContainer, { backgroundColor: '#EF444420' }]}>
+                  <MaterialCommunityIcons name="alert-circle" size={20} color="#EF4444" />
+                  <Text style={styles.errorText}>{searchError}</Text>
+                </View>
+              )}
+
+              {/* Search results */}
+              {!searching && searchResults.length > 0 && (
+                <View style={styles.resultsList}>
+                  {searchResults.map((item) => (
+                    <TouchableOpacity
+                      key={item.youtube_id}
+                      testID={`search-result-${item.youtube_id}`}
+                      style={[styles.resultRow, { backgroundColor: colors.bg_card, borderColor: colors.border }]}
+                      onPress={() => selectFromSearch(item)}
+                      activeOpacity={0.7}
+                    >
+                      <Image source={{ uri: item.thumbnail }} style={styles.resultThumb} resizeMode="cover" />
+                      <View style={styles.resultInfo}>
+                        <Text style={[styles.resultTitle, { color: colors.text_primary }]} numberOfLines={2}>
+                          {item.title}
+                        </Text>
+                        <Text style={[styles.resultChannel, { color: colors.text_secondary }]} numberOfLines={1}>
+                          {item.channel_name}
+                        </Text>
+                      </View>
+                      <MaterialCommunityIcons name="chevron-right" size={22} color={colors.text_secondary} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </>
+          )}
+
+          {/* URL mode */}
+          {mode === 'url' && (
               <View
                 style={[styles.urlRow, { backgroundColor: colors.bg_card, borderColor: colors.border }]}
               >
@@ -187,6 +336,7 @@ export default function AddVideoScreen() {
                   </TouchableOpacity>
                 )}
               </View>
+          )}
 
               {/* Loading indicator */}
               {fetchingInfo && (
@@ -244,6 +394,26 @@ export default function AddVideoScreen() {
                       <Text style={[styles.successBadgeText, { color: colors.primary }]}>
                         Vidéo sélectionnée - Prête à noter !
                       </Text>
+                    </View>
+
+                    {/* Quick actions: favoris (playlist) + changer de vidéo */}
+                    <View style={styles.previewActions}>
+                      <TouchableOpacity
+                        testID="add-to-playlist-btn"
+                        style={[styles.previewActionBtn, { borderColor: colors.primary }]}
+                        onPress={() => setPlaylistModal(true)}
+                      >
+                        <MaterialCommunityIcons name="bookmark-plus-outline" size={18} color={colors.primary} />
+                        <Text style={[styles.previewActionText, { color: colors.primary }]}>Favoris</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        testID="change-video-btn"
+                        style={[styles.previewActionBtn, { borderColor: colors.border }]}
+                        onPress={clearSelection}
+                      >
+                        <MaterialCommunityIcons name="swap-horizontal" size={18} color={colors.text_secondary} />
+                        <Text style={[styles.previewActionText, { color: colors.text_secondary }]}>Changer</Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
                 </Animated.View>
@@ -307,6 +477,13 @@ export default function AddVideoScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
       
+      {/* Add to playlist (favoris) */}
+      <AddToPlaylistModal
+        visible={playlistModal}
+        onClose={() => setPlaylistModal(false)}
+        video={currentVideo}
+      />
+
       {/* Success Modal */}
       <Modal
         visible={showSuccess}
@@ -345,6 +522,35 @@ const styles = StyleSheet.create({
   header: { marginBottom: 20 },
   headerTitle: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
   headerSub: { fontSize: 15, marginTop: 4 },
+
+  // Mode tabs
+  tabsRow: {
+    flexDirection: 'row', borderRadius: 100, padding: 4, marginBottom: 16, gap: 4,
+  },
+  tabBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, paddingVertical: 10, borderRadius: 100, minHeight: 44,
+  },
+  tabText: { fontSize: 14, fontWeight: '700' },
+
+  // Search results
+  resultsList: { marginTop: 16, gap: 10 },
+  resultRow: {
+    flexDirection: 'row', alignItems: 'center', borderRadius: 12,
+    borderWidth: 1, padding: 10, gap: 12,
+  },
+  resultThumb: { width: 96, height: 54, borderRadius: 8, backgroundColor: '#000' },
+  resultInfo: { flex: 1 },
+  resultTitle: { fontSize: 14, fontWeight: '600', lineHeight: 19 },
+  resultChannel: { fontSize: 12, marginTop: 4 },
+
+  // Preview quick actions
+  previewActions: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  previewActionBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, borderWidth: 1, borderRadius: 100, paddingVertical: 10, minHeight: 40,
+  },
+  previewActionText: { fontSize: 13, fontWeight: '600' },
   
   // URL Input
   urlRow: {

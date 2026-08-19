@@ -8,6 +8,7 @@ import logging
 import uuid
 import re
 import json
+import html
 import httpx
 import bcrypt
 import smtplib
@@ -767,6 +768,63 @@ async def get_controversial_videos(request: Request):
     } for r in results]
 
 # --- Video Info Fetch ---
+# --- YouTube Data API v3 (search by video name or channel) ---
+YOUTUBE_API_KEY = os.environ.get('YOUTUBE_API_KEY', '')
+_youtube_search_cache: dict = {}
+
+@api_router.get("/youtube/search")
+async def youtube_search(q: str, request: Request):
+    await get_current_user(request)
+    query = q.strip()
+    if not query:
+        raise HTTPException(400, "Requête vide")
+    if not YOUTUBE_API_KEY:
+        raise HTTPException(503, "Recherche YouTube non configurée")
+
+    # 15-min in-memory cache to preserve API quota
+    cache_key = query.lower()
+    cached = _youtube_search_cache.get(cache_key)
+    if cached and cached["expires"] > datetime.now(timezone.utc):
+        return {"results": cached["results"]}
+
+    async with httpx.AsyncClient() as http:
+        resp = await http.get(
+            "https://www.googleapis.com/youtube/v3/search",
+            params={
+                "part": "snippet", "type": "video", "maxResults": 15,
+                "q": query, "safeSearch": "moderate",
+                "relevanceLanguage": "fr", "key": YOUTUBE_API_KEY,
+            },
+            timeout=10,
+        )
+    if resp.status_code != 200:
+        logger.error(f"YouTube search error {resp.status_code}: {resp.text[:300]}")
+        raise HTTPException(502, "Erreur de recherche YouTube. Réessayez plus tard.")
+
+    results = []
+    for it in resp.json().get("items", []):
+        vid = it.get("id", {}).get("videoId")
+        sn = it.get("snippet", {})
+        if not vid:
+            continue
+        thumbs = sn.get("thumbnails", {})
+        thumb = (thumbs.get("high") or thumbs.get("medium") or thumbs.get("default") or {}).get("url", "")
+        results.append({
+            "youtube_id": vid,
+            "title": html.unescape(sn.get("title", "")),
+            "channel_name": html.unescape(sn.get("channelTitle", "")),
+            "thumbnail": thumb,
+            "published_at": sn.get("publishedAt", ""),
+        })
+
+    _youtube_search_cache[cache_key] = {
+        "results": results,
+        "expires": datetime.now(timezone.utc) + timedelta(minutes=15),
+    }
+    if len(_youtube_search_cache) > 200:
+        _youtube_search_cache.clear()
+    return {"results": results}
+
 @api_router.get("/videos/fetch-info")
 async def fetch_video_info(url: str, request: Request):
     """Fetch video info from URL before rating"""

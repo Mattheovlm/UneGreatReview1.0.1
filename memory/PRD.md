@@ -141,3 +141,8 @@ Letterboxd pour YouTube - Plateforme sociale de curation de vidéos YouTube.
 
 ## Renommage (Juin 2026)
 - L'app s'appelle désormais **UneGreatReview** (ex "Social Cinema") : tous les textes UI, emails de vérification, pages légales in-app + page web publique, app.json (name, scheme=unegreatreview, bundleIdentifier/package=com.unegreatreview.app — slug conservé pour le tooling). Les contacts fictifs @socialcinema.app remplacés par la vraie adresse unegreatreview@gmail.com.
+
+## Recherche YouTube Data API v3 (Juin 2026)
+- **FEATURE**: GET /api/youtube/search?q= (auth requise, safeSearch=moderate, 15 résultats, cache mémoire 15 min pour préserver le quota 10k/jour). Clé AIza valide fournie par l'utilisateur dans backend/.env (YOUTUBE_API_KEY).
+- **FEATURE UI (add.tsx)**: 2 onglets — "Recherche" (défaut: taper nom de vidéo ou chaîne → résultats avec vignettes → sélection) et "Lien" (collage URL, inchangé). Après sélection: noter ⭐ + commenter + "Publier ma note", bouton "Favoris" (AddToPlaylistModal) et "Changer".
+- Tests: iteration_5.json — PASS backend (4/4 pytest) + frontend complet.
