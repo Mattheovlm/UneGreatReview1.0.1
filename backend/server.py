@@ -151,13 +151,13 @@ async def send_verification_email(email: str, name: str, code: str):
         logger.warning("SMTP not configured — email verification skipped. Set SMTP_USER and SMTP_PASSWORD in .env")
         return
     msg = MIMEMultipart("alternative")
-    msg["Subject"] = f"{code} est votre code de vérification — Social Cinema"
+    msg["Subject"] = f"{code} est votre code de vérification — UneGreatReview"
     msg["From"] = SMTP_FROM
     msg["To"] = email
     html = f"""
 <html><body style="font-family:sans-serif;background:#09090B;color:#f4f4f5;padding:40px">
 <div style="max-width:480px;margin:auto;background:#18181B;border-radius:16px;padding:32px">
-  <h1 style="color:#E11D48;margin-top:0">🎬 Social Cinema</h1>
+  <h1 style="color:#E11D48;margin-top:0">🎬 UneGreatReview</h1>
   <p>Bonjour <strong>{name}</strong>,</p>
   <p>Voici votre code de vérification. Saisissez-le dans l'application pour activer votre compte :</p>
   <div style="background:#09090B;border:2px solid #E11D48;border-radius:12px;padding:20px;text-align:center;margin:20px 0">
@@ -477,7 +477,7 @@ async def export_my_data(request: Request):
     return {
         "export_info": {
             "generated_at": datetime.now(timezone.utc).isoformat(),
-            "app": "Social Cinema",
+            "app": "UneGreatReview",
             "legal_basis": "RGPD Article 20 — Droit à la portabilité des données",
             "description": "Copie intégrale des données personnelles associées à votre compte.",
         },
@@ -1652,7 +1652,7 @@ PRIVACY_POLICY_HTML = """<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Politique de Confidentialité — Social Cinema</title>
+<title>Politique de Confidentialité — UneGreatReview</title>
 <style>
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
          background: #09090B; color: #d4d4d8; margin: 0; padding: 0; line-height: 1.7; }
@@ -1670,12 +1670,12 @@ PRIVACY_POLICY_HTML = """<!DOCTYPE html>
 </head>
 <body>
 <div class="wrap">
-  <div class="brand">🎬 Social Cinema</div>
+  <div class="brand">🎬 UneGreatReview</div>
   <h1>Politique de Confidentialité</h1>
   <p class="updated">Dernière mise à jour : Juin 2026</p>
 
   <h2>1. Introduction</h2>
-  <p>Social Cinema (« nous », « notre », « nos ») s'engage à protéger votre vie privée. Cette politique de confidentialité explique comment nous collectons, utilisons et protégeons vos informations personnelles lorsque vous utilisez notre application mobile.</p>
+  <p>UneGreatReview (« nous », « notre », « nos ») s'engage à protéger votre vie privée. Cette politique de confidentialité explique comment nous collectons, utilisons et protégeons vos informations personnelles lorsque vous utilisez notre application mobile.</p>
 
   <h2>2. Données collectées</h2>
   <p>Nous collectons les données suivantes :</p>
@@ -1735,9 +1735,9 @@ PRIVACY_POLICY_HTML = """<!DOCTYPE html>
 
   <h2>11. Contact</h2>
   <p>Pour toute question concernant cette politique de confidentialité ou vos données personnelles, contactez-nous à :<br>
-  📧 <a href="mailto:privacy@socialcinema.app">privacy@socialcinema.app</a></p>
+  📧 <a href="mailto:unegreatreview@gmail.com">unegreatreview@gmail.com</a></p>
 
-  <footer>© 2026 Social Cinema — Tous droits réservés.</footer>
+  <footer>© 2026 UneGreatReview — Tous droits réservés.</footer>
 </div>
 </body>
 </html>"""

@@ -138,3 +138,6 @@ Letterboxd pour YouTube - Plateforme sociale de curation de vidéos YouTube.
 ## Page web publique Politique de Confidentialité (Juin 2026)
 - **FEATURE**: GET /api/legal/privacy — page HTML publique hébergée (HTMLResponse dans server.py, thème sombre) reprenant la politique in-app + sections modération UGC et âge minimum 13+. À utiliser comme "Privacy Policy URL" dans App Store Connect / Play Console. URL preview: https://rate-reels.preview.emergentagent.com/api/legal/privacy (en production: <domaine-déployé>/api/legal/privacy).
 - Info transmise à l'utilisateur: comptes développeur Apple (99 USD/an) et Google Play (25 USD unique) à sa charge; Emergent gère uniquement la génération des builds.
+
+## Renommage (Juin 2026)
+- L'app s'appelle désormais **UneGreatReview** (ex "Social Cinema") : tous les textes UI, emails de vérification, pages légales in-app + page web publique, app.json (name, scheme=unegreatreview, bundleIdentifier/package=com.unegreatreview.app — slug conservé pour le tooling). Les contacts fictifs @socialcinema.app remplacés par la vraie adresse unegreatreview@gmail.com.

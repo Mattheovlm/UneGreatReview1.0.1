@@ -25,15 +25,15 @@ export default function LegalNoticeScreen() {
 
         <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>1. Éditeur de l&apos;application</Text>
         <Text style={[styles.paragraph, { color: colors.text_secondary }]}>
-          L&apos;application <Text style={styles.bold}>Social Cinema</Text> est éditée à titre personnel par une personne physique.{'\n\n'}
+          L&apos;application <Text style={styles.bold}>UneGreatReview</Text> est éditée à titre personnel par une personne physique.{'\n\n'}
           Conformément à l&apos;article 6-III-2 de la loi n°2004-575 du 21 juin 2004 pour la confiance dans l&apos;économie numérique (LCEN), l&apos;éditeur, personne physique agissant à titre non professionnel, a choisi de préserver son anonymat. Ses coordonnées complètes ont été transmises à l&apos;hébergeur mentionné ci-dessous.
         </Text>
 
         <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>2. Contact</Text>
         <Text style={[styles.paragraph, { color: colors.text_secondary }]}>
           Pour toute question, réclamation ou demande relative à l&apos;application :{'\n\n'}
-          📧 Contact général : <Text style={[styles.link, { color: colors.primary }]} onPress={() => Linking.openURL('mailto:support@socialcinema.app')}>support@socialcinema.app</Text>{'\n'}
-          📧 Données personnelles : <Text style={[styles.link, { color: colors.primary }]} onPress={() => Linking.openURL('mailto:privacy@socialcinema.app')}>privacy@socialcinema.app</Text>
+          📧 Contact général : <Text style={[styles.link, { color: colors.primary }]} onPress={() => Linking.openURL('mailto:unegreatreview@gmail.com')}>unegreatreview@gmail.com</Text>{'\n'}
+          📧 Données personnelles : <Text style={[styles.link, { color: colors.primary }]} onPress={() => Linking.openURL('mailto:unegreatreview@gmail.com')}>unegreatreview@gmail.com</Text>
         </Text>
 
         <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>3. Directeur de la publication</Text>
@@ -51,9 +51,9 @@ export default function LegalNoticeScreen() {
 
         <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>5. Propriété intellectuelle</Text>
         <Text style={[styles.paragraph, { color: colors.text_secondary }]}>
-          Le nom, le logo, l&apos;interface et le code de Social Cinema sont la propriété exclusive de son éditeur.{'\n\n'}
+          Le nom, le logo, l&apos;interface et le code de UneGreatReview sont la propriété exclusive de son éditeur.{'\n\n'}
           Les vidéos affichées dans l&apos;application sont diffusées via le lecteur YouTube officiel (YouTube embedded player), conformément aux Conditions d&apos;Utilisation de l&apos;API YouTube. Les vignettes, titres et contenus des vidéos restent la propriété de leurs auteurs respectifs et de YouTube/Google LLC.{'\n\n'}
-          Les notes et commentaires publiés par les utilisateurs restent leur propriété ; en les publiant, ils accordent à Social Cinema une licence d&apos;affichage au sein de l&apos;application.
+          Les notes et commentaires publiés par les utilisateurs restent leur propriété ; en les publiant, ils accordent à UneGreatReview une licence d&apos;affichage au sein de l&apos;application.
         </Text>
 
         <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>6. Données personnelles</Text>

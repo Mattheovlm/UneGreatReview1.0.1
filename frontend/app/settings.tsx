@@ -7,7 +7,7 @@ import { useTheme } from '../src/contexts/ThemeContext';
 import { apiCall } from '../src/utils/api';
 import FloatingTabBar from '../src/components/FloatingTabBar';
 
-const SUPPORT_EMAIL = 'support@socialcinema.app';
+const SUPPORT_EMAIL = 'unegreatreview@gmail.com';
 
 export default function SettingsScreen() {
   const { colors, theme, toggleTheme } = useTheme();
@@ -28,14 +28,14 @@ export default function SettingsScreen() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `social-cinema-export-${new Date().toISOString().slice(0, 10)}.json`;
+        a.download = `unegreatreview-export-${new Date().toISOString().slice(0, 10)}.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
       } else {
         await Share.share({
-          title: 'Export de mes données — Social Cinema',
+          title: 'Export de mes données — UneGreatReview',
           message: json,
         });
       }
@@ -96,7 +96,7 @@ export default function SettingsScreen() {
   };
 
   const handleContactSupport = () => {
-    const subject = encodeURIComponent('Support Social Cinema');
+    const subject = encodeURIComponent('Support UneGreatReview');
     const body = encodeURIComponent(`\n\n---\nUser ID: ${user?.user_id}\nPlatform: ${Platform.OS}`);
     Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`);
   };
@@ -266,7 +266,7 @@ export default function SettingsScreen() {
         </TouchableOpacity>
 
         <Text style={[styles.version, { color: colors.text_secondary }]}>
-          Social Cinema v1.0.0
+          UneGreatReview v1.0.0
         </Text>
       </ScrollView>
       <FloatingTabBar />

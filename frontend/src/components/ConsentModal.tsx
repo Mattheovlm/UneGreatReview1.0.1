@@ -50,7 +50,7 @@ export default function ConsentModal() {
           </Text>
           <ScrollView style={styles.body}>
             <Text style={[styles.text, { color: colors.text_secondary }]}>
-              Pour fonctionner, Social Cinema collecte et traite les données suivantes :{'\n\n'}
+              Pour fonctionner, UneGreatReview collecte et traite les données suivantes :{'\n\n'}
               • <Text style={styles.bold}>Compte</Text> : email, pseudo, photo de profil{'\n'}
               • <Text style={styles.bold}>Activité</Text> : vidéos notées, commentaires, playlists, amis{'\n\n'}
               <Text style={styles.bold}>Intelligence artificielle</Text> : les titres de vos vidéos notées peuvent être transmis à OpenAI pour générer vos recommandations personnalisées. Aucune donnée d&apos;identité n&apos;est partagée.{'\n\n'}

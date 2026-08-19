@@ -64,7 +64,7 @@ export default function RegisterScreen() {
             <MaterialCommunityIcons name="movie-open-star" size={56} color={colors.primary} />
             <Text style={[styles.appName, { color: colors.text_primary }]}>Créer un compte</Text>
             <Text style={[styles.subtitle, { color: colors.text_secondary }]}>
-              Rejoignez la communauté Social Cinema
+              Rejoignez la communauté UneGreatReview
             </Text>
           </View>
 

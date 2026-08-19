@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "Social Cinema",
+    "name": "UneGreatReview",
     "slug": "social-cinema",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "socialcinema",
+    "scheme": "unegreatreview",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.socialcinema.app",
+      "bundleIdentifier": "com.unegreatreview.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -19,7 +19,7 @@
       }
     },
     "android": {
-      "package": "com.socialcinema.app",
+      "package": "com.unegreatreview.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#000"

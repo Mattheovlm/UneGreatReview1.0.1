@@ -25,12 +25,12 @@ export default function TermsScreen() {
 
         <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>1. Acceptation des conditions</Text>
         <Text style={[styles.paragraph, { color: colors.text_secondary }]}>
-          En utilisant Social Cinema, vous acceptez ces conditions d'utilisation. Si vous n'acceptez pas ces conditions, veuillez ne pas utiliser l'application.
+          En utilisant UneGreatReview, vous acceptez ces conditions d'utilisation. Si vous n'acceptez pas ces conditions, veuillez ne pas utiliser l'application.
         </Text>
 
         <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>2. Description du service</Text>
         <Text style={[styles.paragraph, { color: colors.text_secondary }]}>
-          Social Cinema est une application mobile permettant de :{'\n\n'}
+          UneGreatReview est une application mobile permettant de :{'\n\n'}
           • Noter et partager des vidéos YouTube{'\n'}
           • Créer des listes de lecture{'\n'}
           • Interagir avec d'autres utilisateurs{'\n'}
@@ -39,7 +39,7 @@ export default function TermsScreen() {
 
         <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>3. Inscription et compte</Text>
         <Text style={[styles.paragraph, { color: colors.text_secondary }]}>
-          Pour utiliser Social Cinema, vous devez :{'\n\n'}
+          Pour utiliser UneGreatReview, vous devez :{'\n\n'}
           • Avoir au moins 13 ans{'\n'}
           • Fournir des informations exactes lors de l'inscription{'\n'}
           • Maintenir la confidentialité de votre mot de passe{'\n'}
@@ -77,7 +77,7 @@ export default function TermsScreen() {
 
         <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>7. Propriété intellectuelle</Text>
         <Text style={[styles.paragraph, { color: colors.text_secondary }]}>
-          Social Cinema et son contenu original (design, logos, textes) sont protégés par les droits d'auteur. Les vidéos YouTube restent la propriété de leurs créateurs respectifs.
+          UneGreatReview et son contenu original (design, logos, textes) sont protégés par les droits d'auteur. Les vidéos YouTube restent la propriété de leurs créateurs respectifs.
         </Text>
 
         <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>8. Limitation de responsabilité</Text>
@@ -98,7 +98,7 @@ export default function TermsScreen() {
         <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>11. Contact</Text>
         <Text style={[styles.paragraph, { color: colors.text_secondary }]}>
           Pour toute question concernant ces conditions d'utilisation :{'\n\n'}
-          📧 legal@socialcinema.app
+          📧 unegreatreview@gmail.com
         </Text>
 
         <View style={{ height: 40 }} />

@@ -25,7 +25,7 @@ export default function PrivacyPolicyScreen() {
 
         <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>1. Introduction</Text>
         <Text style={[styles.paragraph, { color: colors.text_secondary }]}>
-          Social Cinema ("nous", "notre", "nos") s'engage à protéger votre vie privée. Cette politique de confidentialité explique comment nous collectons, utilisons et protégeons vos informations personnelles lorsque vous utilisez notre application mobile.
+          UneGreatReview ("nous", "notre", "nos") s'engage à protéger votre vie privée. Cette politique de confidentialité explique comment nous collectons, utilisons et protégeons vos informations personnelles lorsque vous utilisez notre application mobile.
         </Text>
 
         <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>2. Données collectées</Text>
@@ -85,7 +85,7 @@ export default function PrivacyPolicyScreen() {
         <Text style={[styles.sectionTitle, { color: colors.text_primary }]}>9. Contact</Text>
         <Text style={[styles.paragraph, { color: colors.text_secondary }]}>
           Pour toute question concernant cette politique de confidentialité ou vos données personnelles, contactez-nous à :{'\n\n'}
-          📧 privacy@socialcinema.app
+          📧 unegreatreview@gmail.com
         </Text>
 
         <View style={{ height: 40 }} />

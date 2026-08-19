@@ -65,7 +65,7 @@ export default function LoginScreen() {
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
             <MaterialCommunityIcons name="movie-open-star" size={56} color={colors.primary} />
-            <Text style={[styles.appName, { color: colors.text_primary }]}>Social Cinema</Text>
+            <Text style={[styles.appName, { color: colors.text_primary }]}>UneGreatReview</Text>
             <Text style={[styles.subtitle, { color: colors.text_secondary }]}>
               Partagez vos vidéos YouTube préférées
             </Text>

@@ -83,7 +83,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg_root }]} testID="home-screen">
       <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: colors.text_primary }]}>Social Cinema</Text>
+        <Text style={[styles.headerTitle, { color: colors.text_primary }]}>UneGreatReview</Text>
         <MaterialCommunityIcons name="movie-open-star" size={28} color={colors.primary} />
       </View>
 
