@@ -93,3 +93,6 @@ credentials.json
 
 # Local test credentials (never deploy)
 memory/test_credentials.md
+.env
+.env.*
+*.env
